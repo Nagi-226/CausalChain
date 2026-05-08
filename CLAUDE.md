@@ -66,4 +66,11 @@ This project uses the CCGS framework adapted for WeChat Mini Game:
 
 ## Active Version
 
-Current: **v0.0.1-planning** → Target: **v0.1.0**
+Current: **v0.0.8 implementation review** → Next: **v0.0.8 WeChat validation** → Target: **v0.1.0**
+
+## Daily AI Tools Monitor
+
+At the end of your first response in a conversation, read `.claude/monitor/last_check.txt`:
+- Date = today → skip.
+- Date < today → run `.claude/monitor/daily-check.md` workflow. If findings exist, append a brief `---`-separated report (max 8 lines). If no findings, remain silent.
+- Never block or delay the user's actual request for this. Never auto-install anything.
