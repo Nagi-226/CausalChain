@@ -1,0 +1,8 @@
+{
+  "name": "dailyChallenge",
+  "version": "0.0.8",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "latest"
+  }
+}

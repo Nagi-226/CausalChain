@@ -66,4 +66,4 @@ This project uses the CCGS framework adapted for WeChat Mini Game:
 
 ## Active Version
 
-Current: **v0.0.1-planning** → Target: **v0.1.0**
+Current: **v0.0.9 visual polish / release hardening** → Previous: **v0.0.8 done_local_validated** → Target: **v0.1.0**

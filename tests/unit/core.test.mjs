@@ -10,6 +10,14 @@ const CausalEngine = require('../../src/core/CausalEngine.js');
 const BoardGenerator = require('../../src/core/BoardGenerator.js');
 const BoardValidator = require('../../src/core/BoardValidator.js');
 const Solver = require('../../src/core/Solver.js');
+const ShareManager = require('../../src/social/ShareManager.js');
+const LeaderboardManager = require('../../src/social/LeaderboardManager.js');
+const DailyChallenge = require('../../src/social/DailyChallenge.js');
+const AdManager = require('../../src/monetization/AdManager.js');
+const ItemManager = require('../../src/monetization/ItemManager.js');
+const openDataContext = require('../../open-data-context/index.js');
+const dailyChallengeCloud = require('../../cloud/functions/dailyChallenge/index.js');
+const { bootstrap } = require('../../game.js');
 const levels = require('../../src/data/levels.json');
 const themes = require('../../assets/themes/themes.json');
 
@@ -205,6 +213,264 @@ const placePair = (board, from, to, color = 'crimson', icon = 'spark') => {
   const insight = engine.getCausalInsight();
   assert.ok(Array.isArray(insight), 'causal insight returns path array');
   assert.ok(insight.length >= 2, 'causal insight contains at least one direct pair');
+}
+
+{
+  const share = new ShareManager();
+  const pathData = {
+    nodes: [
+      { id: 'a', row: 0, col: 0, x: 10, y: 20, color: '#8DD7FF' },
+      { id: 'b', row: 0, col: 1, x: 60, y: 20, color: '#FFD166' }
+    ],
+    edges: [{ from: 0, to: 1 }]
+  };
+  const result = { levelId: 7, moves: 12, minimumSteps: 10, stars: 2, backtracks: 1 };
+  const payload = share.buildSharePayload(result, pathData);
+  assert.equal(payload.data.levelId, 7);
+  assert.equal(payload.data.pathNodeCount, 2);
+  assert.equal(payload.data.trigger, 'clear');
+  const card = await share.generatePathCard(result, pathData);
+  assert.equal(card.width, 600);
+  assert.equal(card.pathNodeCount, 2);
+  const revivePayload = share.buildSharePayload({ levelId: 7, shareTrigger: 'share_revive' }, pathData);
+  assert.ok(revivePayload.query.includes('trigger=share_revive'));
+}
+
+{
+  const calls = [];
+  const provinceCalls = [];
+  const wxMock = {
+    setUserCloudStorage(options) {
+      calls.push(options.KVDataList);
+      options.success({ ok: true });
+    },
+    cloud: {
+      callFunction(options) {
+        provinceCalls.push(options.data);
+        options.success({ result: { rows: [{ rank: 1, bestMoves: 10 }] } });
+      }
+    }
+  };
+  const leaderboard = new LeaderboardManager({ wxApi: wxMock, storageKey: `test-${Date.now()}` });
+  const first = await leaderboard.submitLevelResult({ levelId: 3, moves: 14, stars: 2, elapsedMs: 10000 });
+  const second = await leaderboard.submitLevelResult({ levelId: 3, moves: 10, stars: 3, elapsedMs: 9000 });
+  assert.equal(first.success, true);
+  assert.equal(first.isPersonalBest, true);
+  assert.equal(second.record.bestMoves, 10);
+  assert.equal(second.record.stars, 3);
+  assert.equal(second.isPersonalBest, true);
+  assert.equal(second.previousRecord.bestMoves, 14);
+  assert.equal(calls.length, 2);
+  assert.equal(provinceCalls.length, 2);
+  const rows = await leaderboard.getFriendLeaderboard(3);
+  assert.equal(rows[0].bestMoves, 10);
+  const provinceRows = await leaderboard.getProvinceLeaderboard(3);
+  assert.equal(provinceRows[0].rank, 1);
+}
+
+{
+  const posted = [];
+  const wxMock = {
+    getOpenDataContext() {
+      return { postMessage: (message) => posted.push(message) };
+    }
+  };
+  const leaderboard = new LeaderboardManager({ wxApi: wxMock, storageKey: `open-data-${Date.now()}` });
+  const state = await leaderboard.showFriendLeaderboard(4, { width: 320, height: 360 });
+  assert.equal(state.usesOpenDataContext, true);
+  assert.equal(posted.length, 1);
+  assert.equal(posted[0].levelId, 4);
+  assert.equal(posted[0].width, 320);
+}
+
+{
+  const rows = openDataContext.normalizeRows(5, [{
+    nickname: 'A',
+    KVDataList: [
+      { key: 'level_5_best_moves', value: '8' },
+      { key: 'level_5_stars', value: '3' },
+      { key: 'total_stars', value: '24' }
+    ]
+  }]);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].rank, 1);
+  assert.equal(rows[0].bestMoves, 8);
+}
+
+{
+  const wxMock = {
+    getFriendCloudStorage(options) {
+      options.success({
+        data: [{
+          nickname: 'Friend A',
+          KVDataList: [
+            { key: 'level_6_best_moves', value: '13' },
+            { key: 'level_6_stars', value: '3' },
+            { key: 'total_stars', value: '30' }
+          ]
+        }]
+      });
+    },
+    setUserCloudStorage(options) {
+      options.success({ ok: true });
+    }
+  };
+  const leaderboard = new LeaderboardManager({ wxApi: wxMock, storageKey: `friend-record-${Date.now()}` });
+  const submit = await leaderboard.submitLevelResult({ levelId: 6, moves: 12, stars: 3, elapsedMs: 7000 });
+  assert.equal(submit.beatFriendRecord, true);
+  assert.equal(submit.friendBenchmark.bestMoves, 13);
+  const share = new ShareManager();
+  const payload = share.buildSharePayload({ levelId: 6, moves: 12, stars: 3, shareTrigger: 'friend_record' }, {});
+  assert.ok(payload.title.includes('超越好友纪录'));
+}
+
+{
+  const game = bootstrap({ autoStart: false, width: 375, height: 667 });
+  assert.equal(game.getShareReviveRemaining(), 3);
+  game.markShareReviveUsed();
+  game.markShareReviveUsed();
+  assert.equal(game.getShareReviveRemaining(), 1);
+  game.markShareReviveUsed();
+  assert.equal(game.canUseShareRevive(), false);
+  game.stop();
+}
+
+{
+  const adManager = new AdManager({
+    mock: true,
+    config: {
+      cooldownMs: 0,
+      interstitialCooldownMs: 0,
+      interstitialEveryLevels: 5,
+      mockDelayMs: 0
+    }
+  });
+  const reward = await adManager.requestDoubleScore();
+  assert.equal(reward.success, true);
+  const skipped = await adManager.showInterstitialAfterLevel(4);
+  assert.equal(skipped.success, false);
+  assert.equal(skipped.reason, 'notScheduled');
+  const shown = await adManager.showInterstitialAfterLevel(5);
+  assert.equal(shown.success, true);
+  await adManager.showResultBanner({ width: 375, height: 667 });
+  assert.equal(adManager.getFillStats('rewarded').success, 1);
+  assert.equal(adManager.getFillStats('interstitial').success, 1);
+  assert.equal(adManager.getFillStats('banner').success, 1);
+}
+
+{
+  let rewardedCloseHandler = null;
+  const created = [];
+  const wxMock = {
+    createRewardedVideoAd(options) {
+      created.push({ type: 'rewarded', adUnitId: options.adUnitId });
+      return {
+        onClose(handler) { rewardedCloseHandler = handler; },
+        offClose(handler) {
+          if (rewardedCloseHandler === handler) rewardedCloseHandler = null;
+        },
+        onError() {},
+        load() { return Promise.resolve(); },
+        show() {
+          setTimeout(() => {
+            if (rewardedCloseHandler) rewardedCloseHandler({ isEnded: true });
+          }, 0);
+          return Promise.resolve();
+        }
+      };
+    },
+    createInterstitialAd(options) {
+      created.push({ type: 'interstitial', adUnitId: options.adUnitId });
+      return { show: () => Promise.resolve() };
+    },
+    createBannerAd(options) {
+      created.push({ type: 'banner', adUnitId: options.adUnitId, style: options.style });
+      return {
+        show: () => Promise.resolve(),
+        hide: () => {}
+      };
+    }
+  };
+  const adManager = new AdManager({
+    wxApi: wxMock,
+    mock: false,
+    config: {
+      rewardedAdUnitId: 'rewarded-real-id',
+      interstitialAdUnitId: 'interstitial-real-id',
+      bannerAdUnitId: 'banner-real-id',
+      cooldownMs: 0,
+      interstitialCooldownMs: 0,
+      interstitialEveryLevels: 5
+    }
+  });
+  const revive = await adManager.requestRevive();
+  assert.equal(revive.success, true);
+  const interstitial = await adManager.showInterstitialAfterLevel(10);
+  assert.equal(interstitial.success, true);
+  const banner = await adManager.showResultBanner({ width: 375, height: 667 });
+  assert.equal(banner.success, true);
+  assert.ok(created.some((item) => item.type === 'rewarded' && item.adUnitId === 'rewarded-real-id'));
+  assert.ok(created.some((item) => item.type === 'interstitial' && item.adUnitId === 'interstitial-real-id'));
+  assert.ok(created.some((item) => item.type === 'banner' && item.adUnitId === 'banner-real-id'));
+  assert.equal(adManager.getFillStats('rewarded').success, 1);
+  assert.equal(adManager.getFillStats('interstitial').success, 1);
+  assert.equal(adManager.getFillStats('banner').success, 1);
+}
+
+{
+  const adManager = new AdManager({ mock: true, config: { cooldownMs: 0, mockDelayMs: 0 } });
+  const items = new ItemManager({ adManager, inventory: { freeze: 0, reveal: 0, undo: 0, shuffle: 0 } });
+  const levelGrant = items.startLevel(6);
+  assert.equal(levelGrant.reveal, 1);
+  const nullOptionsGrant = items.applyLevelGrants(3, null);
+  assert.equal(nullOptionsGrant.reveal, 1);
+  items.setInventory(null);
+  assert.equal(typeof items.getInventory().reveal, 'number');
+  const adGrant = await items.requestAdItem('shuffle');
+  assert.equal(adGrant.success, true);
+  assert.equal(items.getInventory().shuffle, 1);
+  const dailyGrant = items.claimDailyChallengeReward({ reveal: 1, undo: 1 });
+  assert.equal(dailyGrant.undo, 1);
+}
+
+{
+  const daily = new DailyChallenge({ storageKey: `daily-${Date.now()}` });
+  const challenge = await daily.getTodayChallenge(new Date('2026-05-08T00:00:00Z'));
+  assert.equal(challenge.isDailyChallenge, true);
+  assert.ok(challenge.seed.includes('2026-05-08'));
+  const submit = await daily.submitResult({ dateKey: '2026-05-08', moves: 11, stars: 3, elapsedMs: 6000 });
+  assert.equal(submit.ok, true);
+  const rows = await daily.getNationalLeaderboard('2026-05-08');
+  assert.equal(rows[0].rank, 1);
+  const items = new ItemManager({ inventory: { freeze: 0, reveal: 0, undo: 0, shuffle: 0 } });
+  const reward = daily.claimReward(items, '2026-05-08');
+  assert.equal(reward.success, true);
+  assert.equal(items.getInventory().reveal, 1);
+  const duplicate = daily.claimReward(items, '2026-05-08');
+  assert.equal(duplicate.reason, 'alreadyClaimed');
+}
+
+{
+  const cloudChallenge = await dailyChallengeCloud.main({ action: 'getTodayChallenge', dateKey: '2026-05-08' });
+  assert.equal(cloudChallenge.ok, true);
+  assert.equal(cloudChallenge.challenge.seed, 'daily-2026-05-08-1454627708');
+  const submit = await dailyChallengeCloud.main({
+    action: 'submitResult',
+    dateKey: '2026-05-08-cloud-test',
+    openid: 'tester-a',
+    moves: 9,
+    stars: 3,
+    elapsedMs: 5000
+  });
+  assert.equal(submit.ok, true);
+  assert.equal(submit.rank, 1);
+  const leaderboard = await dailyChallengeCloud.main({
+    action: 'getNationalLeaderboard',
+    dateKey: '2026-05-08-cloud-test'
+  });
+  assert.equal(leaderboard.ok, true);
+  assert.equal(leaderboard.rows[0].openid, 'tester-a');
+  assert.equal(leaderboard.rows[0].rank, 1);
 }
 
 console.log('core.test.mjs: all assertions passed');

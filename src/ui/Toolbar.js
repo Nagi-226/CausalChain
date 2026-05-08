@@ -1,20 +1,23 @@
 const ITEM_IDS = ['freeze', 'reveal', 'undo', 'shuffle'];
 
 const ITEM_ICON = {
-  freeze: 'F',
-  reveal: 'R',
-  undo: 'U',
-  shuffle: 'S'
+  freeze: '❄',
+  reveal: '🔍',
+  undo: '↩',
+  shuffle: '🎲'
 };
 
 const DEFAULT_COLORS = {
-  bg: 'rgba(8, 16, 32, 0.9)',
-  slot: 'rgba(255, 255, 255, 0.12)',
+  bg: 'rgba(8, 16, 32, 0.88)',
+  slot: 'rgba(255, 255, 255, 0.10)',
   selected: '#8DD7FF',
-  text: '#F6F8FF',
-  muted: '#A8B3CF',
-  locked: 'rgba(255, 255, 255, 0.06)',
-  ad: '#FFD166'
+  text: '#F7FAFF',
+  muted: '#A9B7D0',
+  locked: 'rgba(255, 255, 255, 0.05)',
+  ad: '#FFD166',
+  border: 'rgba(141, 215, 255, 0.16)',
+  adBg: 'rgba(255, 209, 102, 0.12)',
+  adBorder: 'rgba(255, 209, 102, 0.30)'
 };
 
 function readString(strings, key) {
@@ -101,8 +104,16 @@ class Toolbar {
     if (!ctx) return;
     const bounds = this.getBounds();
     ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.22)';
+    ctx.shadowBlur = 14;
+    ctx.shadowOffsetY = -2;
+    roundRect(ctx, bounds.x + 8, bounds.y + 6, bounds.width - 16, bounds.height - 10, 22);
     ctx.fillStyle = this.colors.bg;
-    ctx.fillRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    ctx.fill();
+    ctx.strokeStyle = this.colors.border;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
 
     const gap = 8;
     const slotWidth = Math.floor((this.width - 24 - gap * (this.items.length - 1)) / this.items.length);
@@ -124,28 +135,37 @@ class Toolbar {
       const box = { x, y: slotY, width: slotWidth, height: slotHeight, itemId, disabled, requiresAd };
       this.hitBoxes.push(box);
 
+      ctx.save();
+      ctx.shadowColor = isSelected ? 'rgba(141,215,255,0.26)' : 'rgba(0,0,0,0.08)';
+      ctx.shadowBlur = isSelected ? 12 : 6;
       roundRect(ctx, x, slotY, slotWidth, slotHeight, 15);
-      ctx.fillStyle = disabled ? this.colors.locked : this.colors.slot;
+      const isAdReady = requiresAd && !disabled;
+      ctx.fillStyle = disabled ? this.colors.locked : (isAdReady ? this.colors.adBg : this.colors.slot);
       ctx.fill();
-      if (isSelected) {
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = this.colors.selected;
-        ctx.stroke();
-      }
+      ctx.strokeStyle = isSelected ? this.colors.selected : (isAdReady ? this.colors.adBorder : this.colors.border);
+      ctx.lineWidth = isSelected ? 2 : 1;
+      ctx.stroke();
 
-      ctx.fillStyle = disabled ? this.colors.muted : this.colors.text;
+      if (!disabled) {
+        ctx.fillStyle = isAdReady ? 'rgba(255,209,102,0.10)' : 'rgba(255,255,255,0.06)';
+        roundRect(ctx, x + 2, slotY + 2, slotWidth - 4, 18, 10);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      ctx.fillStyle = disabled ? this.colors.muted : (isAdReady ? this.colors.ad : this.colors.text);
       ctx.font = 'bold 20px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(ITEM_ICON[itemId], x + slotWidth / 2, slotY + 19);
+      ctx.fillText(ITEM_ICON[itemId], x + slotWidth / 2, slotY + 18);
 
       ctx.font = '10px sans-serif';
       ctx.fillStyle = this.colors.muted;
       ctx.fillText(this.t(`items.${itemId}.name`), x + slotWidth / 2, slotY + 39);
 
       ctx.font = 'bold 11px sans-serif';
-      ctx.fillStyle = requiresAd ? this.colors.ad : this.colors.text;
-      const hint = requiresAd ? this.t('toolbar.ad') : `x${count}`;
+      ctx.fillStyle = isAdReady ? this.colors.ad : this.colors.text;
+      const hint = isAdReady ? this.t('toolbar.ad') : `x${count}`;
       ctx.fillText(limitReached ? this.t('toolbar.limit') : hint, x + slotWidth / 2, slotY + 56);
     });
 

@@ -1,10 +1,11 @@
 const DEFAULT_COLORS = {
-  bg: 'rgba(8, 16, 32, 0.86)',
-  card: 'rgba(255, 255, 255, 0.11)',
-  text: '#F6F8FF',
-  muted: '#A8B3CF',
+  bg: 'rgba(10, 17, 34, 0.84)',
+  card: 'rgba(255, 255, 255, 0.10)',
+  text: '#F7FAFF',
+  muted: '#A9B7D0',
   accent: '#8DD7FF',
-  danger: '#FF7D7D'
+  danger: '#FF7D7D',
+  border: 'rgba(141, 215, 255, 0.18)'
 };
 
 function readString(strings, key) {
@@ -86,6 +87,9 @@ class HUD {
     roundRect(ctx, x, y, width, 38, 12);
     ctx.fillStyle = this.colors.card;
     ctx.fill();
+    ctx.strokeStyle = this.colors.border;
+    ctx.lineWidth = 1;
+    ctx.stroke();
     ctx.fillStyle = this.colors.muted;
     ctx.font = '10px sans-serif';
     ctx.textAlign = 'left';
@@ -104,11 +108,29 @@ class HUD {
     ctx.fillStyle = this.colors.bg;
     ctx.fillRect(0, 0, width, height);
 
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.18)';
+    ctx.shadowBlur = 16;
+    ctx.shadowOffsetY = 4;
+    roundRect(ctx, 8, safeTop + 6, width - 16, height - safeTop - 12, 20);
+    ctx.fillStyle = 'rgba(255,255,255,0.03)';
+    ctx.fill();
+    ctx.strokeStyle = this.colors.border;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(141,215,255,0.24)';
+    roundRect(ctx, 18, safeTop + 10, 46, 3, 3);
+    ctx.fill();
+    ctx.restore();
+
     ctx.fillStyle = this.colors.accent;
     ctx.font = 'bold 15px sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`${this.t('hud.level')} ${this.state.levelId}`, 14, safeTop + 18);
+    ctx.fillText(`${this.t('hud.level')} ${this.state.levelId}`, 18, safeTop + 18);
 
     ctx.fillStyle = this.state.status === 'fail' ? this.colors.danger : this.colors.muted;
     ctx.font = '12px sans-serif';
@@ -119,10 +141,19 @@ class HUD {
     roundRect(ctx, this.pauseButton.x, this.pauseButton.y, pauseSize, pauseSize, 11);
     ctx.fillStyle = this.colors.card;
     ctx.fill();
+    ctx.strokeStyle = this.colors.border;
+    ctx.lineWidth = 1;
+    ctx.stroke();
     ctx.fillStyle = this.colors.text;
     ctx.font = 'bold 18px sans-serif';
     ctx.textAlign = 'center';
     ctx.fillText('II', this.pauseButton.x + pauseSize / 2, this.pauseButton.y + 18);
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    roundRect(ctx, 18, safeTop + 30, 66, 1, 1);
+    ctx.fill();
+    ctx.restore();
 
     const gap = 6;
     const statY = safeTop + 42;

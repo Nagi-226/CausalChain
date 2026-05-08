@@ -1,8 +1,8 @@
 sprint: 0
 name: v0.0.1-v0.0.5 playable foundation
 review_mode: lean
-stage: Concept
-updated_by: Codex integration
+stage: Production
+updated_by: Codex
 versions:
   v0.0.1:
     status: done
@@ -45,6 +45,54 @@ versions:
       levels_1_to_40: done_by_codex
       star_ocean_themes: done_by_codex
       validation_tests: done_by_codex
+  v0.0.7:
+    status: done_pending_wechat_devtools_signoff
+    modules:
+      share_card_generation: done_by_codex
+      friend_leaderboard: done_by_codex
+      open_data_context: done_by_codex
+      share_triggers: done_by_codex
+      province_leaderboard_hook: done_by_codex
+      province_leaderboard_cloud_function: done_by_codex
+      validation_tests: done_by_codex
+    verified:
+      unit_tests: pass_node_tests_unit_core_test_mjs
+      bootstrap_smoke: pass_node_game_bootstrap_autostart_false
+    pending_validation:
+      - WeChat DevTools real shareAppMessage/showShareImageMenu behavior
+      - WeChat Open Data Context friend data rendering on device
+      - wx.cloud leaderboard cloud function for province rankings
+    resolved_gaps:
+      - Friend-record trigger now compares against friend leaderboard benchmark
+      - Share revive limit now supports three uses per day
+  v0.0.8:
+    status: done_local_validated
+    modules:
+      rewarded_video_item_revive_double_reward: done_by_codex
+      interstitial_every_five_levels: done_by_codex
+      result_banner_ads: done_by_codex
+      ad_fill_monitoring: done_by_codex
+      daily_challenge_seed_and_local_fallback: done_by_codex
+      daily_challenge_cloud_function: done_by_codex
+      national_daily_leaderboard: done_by_codex
+      item_acquisition_economy: done_by_codex
+      validation_tests: done_by_codex
+    verified:
+      unit_tests: pass_node_tests_unit_core_test_mjs
+      bootstrap_smoke: pass_node_game_bootstrap_autostart_false
+      daily_challenge_smoke: pass_node_startDailyChallenge
+      end_to_end_smoke: pass_node_smoke_test2_js
+      wx_ad_api_mock: pass_rewarded_interstitial_banner_api_contracts
+      daily_challenge_cloud_function_local: pass_cloud_function_seed_submit_leaderboard
+      smoke_report: production/qa/smoke-2026-05-08-v0.0.8.md
+    resolved_gaps:
+      - ItemManager.applyLevelGrants now tolerates null option payloads from legacy smoke paths
+      - v0.0.8 ad API contract is covered with wx-style rewarded/interstitial/banner mocks
+      - Daily challenge cloud function is covered locally for seed, submitResult, and national leaderboard
+    release_environment_checks:
+      - Configure real WeChat rewarded/interstitial/banner ad unit IDs before v0.1.0 release validation
+      - Deploy wx.cloud dailyChallenge function and verify production database permissions before v0.1.0 release validation
+      - Run device validation for ad pacing and reward UX during v0.1.0 release validation
 integration_contracts:
   ui_api: update_draw_handleTap
   item_effects:

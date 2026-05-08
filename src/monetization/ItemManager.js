@@ -14,12 +14,33 @@ const DEFAULT_INVENTORY = {
   shuffle: 1
 };
 
+const DEFAULT_CAPS = {
+  freeze: 5,
+  reveal: 5,
+  undo: 6,
+  shuffle: 4
+};
+
+const DEFAULT_ECONOMY = {
+  freeGrantEveryLevels: {
+    reveal: 3,
+    undo: 5,
+    shuffle: 8
+  },
+  dailyChallengeReward: {
+    reveal: 1,
+    undo: 1
+  }
+};
+
 class ItemManager {
   constructor(options = {}) {
     this.adManager = options.adManager || null;
     this.itemIds = options.itemIds || ITEM_IDS;
     this.inventory = { ...DEFAULT_INVENTORY, ...(options.inventory || {}) };
     this.levelLimits = { ...DEFAULT_LIMITS, ...(options.levelLimits || {}) };
+    this.inventoryCaps = { ...DEFAULT_CAPS, ...(options.inventoryCaps || {}) };
+    this.economy = mergeEconomy(DEFAULT_ECONOMY, options.economy || {});
     this.perLevelUsed = {};
     this.currentLevelId = null;
     this.effects = {
@@ -33,9 +54,7 @@ class ItemManager {
   startLevel(levelId, options = {}) {
     this.currentLevelId = levelId;
     this.perLevelUsed = {};
-    if (options.grants) {
-      Object.keys(options.grants).forEach((itemId) => this.grantItem(itemId, options.grants[itemId]));
-    }
+    return this.applyLevelGrants(levelId, options || {});
   }
 
   setAdManager(adManager) {
@@ -43,6 +62,7 @@ class ItemManager {
   }
 
   setInventory(inventory = {}) {
+    inventory = inventory || {};
     this.inventory = { ...this.inventory, ...inventory };
   }
 
@@ -68,8 +88,56 @@ class ItemManager {
 
   grantItem(itemId, amount = 1) {
     if (!this.itemIds.includes(itemId)) return false;
-    this.inventory[itemId] = (this.inventory[itemId] || 0) + Math.max(0, amount);
+    const cap = this.inventoryCaps[itemId] || Infinity;
+    this.inventory[itemId] = Math.min(cap, (this.inventory[itemId] || 0) + Math.max(0, amount));
     return true;
+  }
+
+  grantItems(items = {}) {
+    items = items || {};
+    const granted = {};
+    Object.keys(items).forEach((itemId) => {
+      if (this.grantItem(itemId, items[itemId])) {
+        granted[itemId] = Number(items[itemId] || 0);
+      }
+    });
+    return granted;
+  }
+
+  applyLevelGrants(levelId, options = {}) {
+    options = options || {};
+    const grants = {};
+    const explicit = options.grants && (options.grants.items || options.grants);
+    if (explicit) {
+      Object.keys(explicit).forEach((itemId) => {
+        if (this.itemIds.includes(itemId)) grants[itemId] = (grants[itemId] || 0) + Number(explicit[itemId] || 0);
+      });
+    }
+    Object.keys(this.economy.freeGrantEveryLevels || {}).forEach((itemId) => {
+      const interval = Number(this.economy.freeGrantEveryLevels[itemId] || 0);
+      if (interval > 0 && Number(levelId) > 0 && Number(levelId) % interval === 0) {
+        grants[itemId] = (grants[itemId] || 0) + 1;
+      }
+    });
+    return this.grantItems(grants);
+  }
+
+  claimDailyChallengeReward(reward = this.economy.dailyChallengeReward) {
+    return this.grantItems(reward || {});
+  }
+
+  requestAdItem(itemId, amount = 1) {
+    if (!this.itemIds.includes(itemId)) {
+      return Promise.resolve({ success: false, itemId, reason: 'unknownItem' });
+    }
+    if (!this.adManager || typeof this.adManager.requestReward !== 'function') {
+      return Promise.resolve({ success: false, itemId, reason: 'missingAdManager' });
+    }
+    return this.adManager.requestReward(`item.${itemId}`).then((adResult) => {
+      if (!adResult.success) return { success: false, itemId, reason: 'adNotCompleted', adResult };
+      this.grantItem(itemId, amount);
+      return { success: true, itemId, amount, inventory: this.getInventory(), adResult };
+    });
   }
 
   consumeItem(itemId) {
@@ -111,6 +179,7 @@ class ItemManager {
   }
 
   useItem(itemId, adapter, options = {}) {
+    options = options || {};
     const gate = this.canUseItem(itemId);
     if (!gate.ok) return Promise.resolve({ success: false, itemId, reason: gate.reason });
 
@@ -147,9 +216,25 @@ class ItemManager {
       inventory: this.getInventory(),
       perLevelUsed: this.getPerLevelUsed(),
       limits: { ...this.levelLimits },
+      caps: { ...this.inventoryCaps },
       adHints
     };
   }
+}
+
+function mergeEconomy(base, override) {
+  return {
+    ...base,
+    ...override,
+    freeGrantEveryLevels: {
+      ...(base.freeGrantEveryLevels || {}),
+      ...(override.freeGrantEveryLevels || {})
+    },
+    dailyChallengeReward: {
+      ...(base.dailyChallengeReward || {}),
+      ...(override.dailyChallengeReward || {})
+    }
+  };
 }
 
 module.exports = ItemManager;

@@ -43,6 +43,11 @@
     "subtitle": "Drag a cause into its matching effect.",
     "start": "Start",
     "levelSelect": "Levels",
+    "dailyChallenge": "Daily Challenge",
+    "leaderboard": "Leaderboard",
+    "leaderboardSubtitle": "Friend scores for this timeline.",
+    "leaderboardLoading": "Loading WeChat friend scores...",
+    "leaderboardEmpty": "No friend scores yet. Clear a level to post your first record.",
     "settings": "Settings",
     "paused": "Paused",
     "resume": "Resume",
@@ -73,12 +78,15 @@
     "stats": {
       "moves": "Moves",
       "time": "Time",
-      "backtracks": "Rewinds"
+      "backtracks": "Rewinds",
+      "dailyRank": "Daily Rank"
     },
     "buttons": {
       "share": "Share Chain",
       "retry": "Retry",
       "next": "Next Level",
+      "doubleReward": "2x Reward",
+      "shareRevive": "Share to Revive",
       "undo": "Rewind One Step",
       "restart": "Restart",
       "adRevive": "Watch Ad"

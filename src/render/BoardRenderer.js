@@ -30,7 +30,14 @@ class BoardRenderer {
     };
     this.theme = {
       panel: 'rgba(15,23,42,0.58)',
-      grid: 'rgba(2,6,23,0.34)'
+      grid: 'rgba(2,6,23,0.34)',
+      boardGlow: 'rgba(141,215,255,0.08)',
+      boardEdge: 'rgba(226,232,240,0.18)',
+      boardInner: 'rgba(255,255,255,0.03)',
+      ripple: '#67e8f9',
+      tileBorder: 'rgba(255,255,255,0.42)',
+      tileInner: 'rgba(255,255,255,0.16)',
+      tileShadow: 'rgba(0,0,0,0.18)'
     };
   }
 
@@ -212,11 +219,26 @@ class BoardRenderer {
     ctx.shadowBlur = 18;
     ctx.shadowOffsetY = 9;
     roundedRect(ctx, l.x - 10, l.y - 10, l.width + 20, l.height + 20, 24);
+    ctx.fillStyle = this.theme.boardGlow || 'rgba(141,215,255,0.08)';
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.24)';
+    ctx.shadowBlur = 12;
+    ctx.shadowOffsetY = 6;
+    roundedRect(ctx, l.x - 6, l.y - 6, l.width + 12, l.height + 12, 22);
     ctx.fillStyle = this.theme.panel || 'rgba(15,23,42,0.58)';
     ctx.fill();
-    ctx.strokeStyle = 'rgba(226,232,240,0.18)';
+    ctx.strokeStyle = this.theme.boardEdge || 'rgba(226,232,240,0.18)';
     ctx.lineWidth = 1;
     ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    roundedRect(ctx, l.x, l.y, l.width, l.height, 18);
+    ctx.fillStyle = this.theme.boardInner || 'rgba(255,255,255,0.03)';
+    ctx.fill();
     ctx.restore();
   }
 
@@ -229,11 +251,16 @@ class BoardRenderer {
         const target = this.highlightTarget && this.highlightTarget.row === row && this.highlightTarget.col === col;
         ctx.save();
         roundedRect(ctx, rect.x, rect.y, rect.width, rect.height, this.layout.radius);
-        ctx.fillStyle = invalid ? 'rgba(239,68,68,0.32)' : (this.theme.grid || 'rgba(2,6,23,0.34)');
+        ctx.fillStyle = invalid ? 'rgba(239,68,68,0.24)' : (this.theme.grid || 'rgba(2,6,23,0.34)');
         ctx.fill();
-        ctx.strokeStyle = target ? '#fef3c7' : (selected ? '#93c5fd' : 'rgba(148,163,184,0.18)');
+        ctx.strokeStyle = target ? '#fef3c7' : (selected ? '#93c5fd' : 'rgba(148,163,184,0.16)');
         ctx.lineWidth = target || selected ? 3 : 1;
         ctx.stroke();
+
+        ctx.globalAlpha = 0.18;
+        ctx.fillStyle = 'rgba(255,255,255,0.16)';
+        roundedRect(ctx, rect.x + 1, rect.y + 1, rect.width - 2, Math.max(4, rect.height * 0.16), this.layout.radius * 0.6);
+        ctx.fill();
         ctx.restore();
       }
     }
@@ -261,19 +288,39 @@ class BoardRenderer {
     for (let i = 0; i < waves.length; i += 1) {
       const wave = waves[i];
       const tiles = wave.tiles || [];
+      const relationChain = tiles.some((tile) => tile.relation === 'chain');
+      const baseColor = relationChain ? (this.theme.ripple || '#67e8f9') : '#bfdbfe';
+      const lineWidth = relationChain ? 3.2 : 2.8;
+      const alpha = 0.58 * (1 - wave.progress);
+      const radiusBase = this.layout.cell * (0.24 + wave.progress * 0.48);
       ctx.save();
-      ctx.globalAlpha = 0.62 * (1 - wave.progress);
-      ctx.strokeStyle = tiles.some((tile) => tile.relation === 'chain') ? (this.theme.ripple || '#67e8f9') : '#bfdbfe';
-      ctx.lineWidth = 3;
       for (let t = 0; t < tiles.length; t += 1) {
         const tile = tiles[t];
         const row = tile.row;
         const col = tile.col;
         if (row === undefined || col === undefined) continue;
         const rect = this.getCellRect(row, col);
+        const radius = radiusBase + (t % 2 === 0 ? 0 : this.layout.cell * 0.03);
+
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.18;
+        ctx.strokeStyle = baseColor;
+        ctx.lineWidth = lineWidth + 6;
         ctx.beginPath();
-        ctx.arc(rect.cx, rect.cy, this.layout.cell * (0.26 + wave.progress * 0.44), 0, Math.PI * 2);
+        ctx.arc(rect.cx, rect.cy, radius, 0, Math.PI * 2);
         ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = baseColor;
+        ctx.lineWidth = lineWidth;
+        ctx.setLineDash([6, 4]);
+        ctx.lineDashOffset = -wave.progress * 24;
+        ctx.beginPath();
+        ctx.arc(rect.cx, rect.cy, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
       }
       ctx.restore();
     }
@@ -323,15 +370,15 @@ class BoardRenderer {
     }
     roundedRect(ctx, -half, -half, size, size, r);
     ctx.fill();
-    ctx.strokeStyle = invalid ? '#fecaca' : 'rgba(255,255,255,0.42)';
+    ctx.strokeStyle = invalid ? '#fecaca' : (this.theme.tileBorder || 'rgba(255,255,255,0.42)');
     ctx.lineWidth = invalid ? 4 : 1.5;
     ctx.stroke();
 
-    ctx.globalAlpha *= 0.16;
-    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha *= 0.18;
+    ctx.fillStyle = this.theme.tileInner || '#ffffff';
     roundedRect(ctx, -half + 5, -half + 5, size - 10, Math.max(8, size * 0.22), r * 0.7);
     ctx.fill();
-    ctx.globalAlpha /= 0.16;
+    ctx.globalAlpha /= 0.18;
   }
 
   drawTileIcon(ctx, size, tile) {

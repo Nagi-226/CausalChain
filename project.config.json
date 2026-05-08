@@ -3,6 +3,7 @@
   "compileType": "game",
   "libVersion": "latest",
   "projectname": "causalChain",
+  "cloudfunctionRoot": "cloud/functions/",
   "setting": {
     "es6": true,
     "enhance": true,

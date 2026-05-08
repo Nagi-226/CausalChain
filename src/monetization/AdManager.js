@@ -3,6 +3,8 @@ const DEFAULT_CONFIG = {
   interstitialAdUnitId: '',
   bannerAdUnitId: '',
   cooldownMs: 30000,
+  interstitialCooldownMs: 90000,
+  interstitialEveryLevels: 5,
   dailyRewardLimit: 20,
   mockDelayMs: 120
 };
@@ -17,9 +19,16 @@ class AdManager {
     this.bannerAd = null;
     this.lastShownAt = {};
     this.dailyCounts = {};
+    this.fillStats = {};
     this.mock = options.mock !== undefined ? options.mock : !this.wxApi;
     if (!this.mock && this.config.rewardedAdUnitId) {
       this.initRewardedVideo(this.config.rewardedAdUnitId);
+    }
+    if (!this.mock && this.config.interstitialAdUnitId) {
+      this.initInterstitial(this.config.interstitialAdUnitId);
+    }
+    if (!this.mock && this.config.bannerAdUnitId) {
+      this.createBanner();
     }
   }
 
@@ -58,6 +67,34 @@ class AdManager {
     this.dailyCounts[key] = (this.dailyCounts[key] || 0) + 1;
   }
 
+  recordFill(adType, success, reason = '') {
+    if (!this.fillStats[adType]) {
+      this.fillStats[adType] = { attempts: 0, success: 0, fail: 0, lastReason: '' };
+    }
+    this.fillStats[adType].attempts += 1;
+    if (success) this.fillStats[adType].success += 1;
+    else this.fillStats[adType].fail += 1;
+    this.fillStats[adType].lastReason = reason;
+    return this.getFillStats(adType);
+  }
+
+  getFillStats(adType = null) {
+    const stats = adType ? { [adType]: this.fillStats[adType] || { attempts: 0, success: 0, fail: 0, lastReason: '' } } : this.fillStats;
+    const result = {};
+    Object.keys(stats).forEach((key) => {
+      const item = stats[key] || {};
+      const attempts = item.attempts || 0;
+      result[key] = {
+        attempts,
+        success: item.success || 0,
+        fail: item.fail || 0,
+        fillRate: attempts ? Math.round(((item.success || 0) / attempts) * 100) : 0,
+        lastReason: item.lastReason || ''
+      };
+    });
+    return adType ? result[adType] : result;
+  }
+
   canShowRewarded(reason = 'reward') {
     const elapsed = this.now() - (this.lastShownAt[reason] || 0);
     if (elapsed < this.config.cooldownMs) {
@@ -93,6 +130,7 @@ class AdManager {
         setTimeout(() => {
           this.lastShownAt[reason] = this.now();
           this.addReasonCount(reason);
+          this.recordFill('rewarded', true, reason);
           const payload = { success: true, source: 'mock', reason };
           this.emit('rewarded.close', payload);
           resolve(payload);
@@ -110,6 +148,7 @@ class AdManager {
           this.lastShownAt[reason] = this.now();
           this.addReasonCount(reason);
         }
+        this.recordFill('rewarded', payload.success, payload.reason || reason);
         this.emit('rewarded.close', payload);
         resolve(payload);
       };
@@ -141,6 +180,14 @@ class AdManager {
     return this.showRewardedVideo(reason);
   }
 
+  requestDoubleScore() {
+    return this.showRewardedVideo('double_score');
+  }
+
+  requestRevive() {
+    return this.showRewardedVideo('revive');
+  }
+
   initInterstitial(adUnitId = this.config.interstitialAdUnitId) {
     this.config.interstitialAdUnitId = adUnitId;
     if (this.mock || !this.wxApi || !this.wxApi.createInterstitialAd || !adUnitId) return null;
@@ -150,11 +197,40 @@ class AdManager {
 
   showInterstitial(reason = 'betweenLevels') {
     if (this.mock || !this.interstitialAd || !this.interstitialAd.show) {
+      this.lastShownAt.interstitial = this.now();
+      this.recordFill('interstitial', true, reason);
       return Promise.resolve({ success: true, source: 'mock', reason });
     }
     return this.interstitialAd.show()
-      .then(() => ({ success: true, source: 'wx', reason }))
-      .catch((error) => ({ success: false, source: 'wx', reason, error }));
+      .then(() => {
+        this.lastShownAt.interstitial = this.now();
+        this.recordFill('interstitial', true, reason);
+        return { success: true, source: 'wx', reason };
+      })
+      .catch((error) => {
+        this.recordFill('interstitial', false, reason);
+        return { success: false, source: 'wx', reason, error };
+      });
+  }
+
+  canShowInterstitialAfterLevel(levelId) {
+    const normalized = Number(levelId || 0);
+    if (!normalized || normalized % this.config.interstitialEveryLevels !== 0) {
+      return { ok: false, reason: 'notScheduled' };
+    }
+    const elapsed = this.now() - (this.lastShownAt.interstitial || 0);
+    if (elapsed < this.config.interstitialCooldownMs) {
+      return { ok: false, reason: 'cooldown', remainingMs: this.config.interstitialCooldownMs - elapsed };
+    }
+    return { ok: true, reason: 'ready' };
+  }
+
+  showInterstitialAfterLevel(levelId) {
+    const gate = this.canShowInterstitialAfterLevel(levelId);
+    if (!gate.ok) {
+      return Promise.resolve({ success: false, source: this.mock ? 'mock' : 'wx', reason: gate.reason, remainingMs: gate.remainingMs || 0 });
+    }
+    return this.showInterstitial(`level_${levelId}_complete`);
   }
 
   createBanner(style = {}, adUnitId = this.config.bannerAdUnitId) {
@@ -169,11 +245,27 @@ class AdManager {
 
   showBanner() {
     if (this.mock || !this.bannerAd || !this.bannerAd.show) {
+      this.recordFill('banner', true, 'show');
       return Promise.resolve({ success: true, source: 'mock' });
     }
     return this.bannerAd.show()
-      .then(() => ({ success: true, source: 'wx' }))
-      .catch((error) => ({ success: false, source: 'wx', error }));
+      .then(() => {
+        this.recordFill('banner', true, 'show');
+        return { success: true, source: 'wx' };
+      })
+      .catch((error) => {
+        this.recordFill('banner', false, 'show');
+        return { success: false, source: 'wx', error };
+      });
+  }
+
+  showResultBanner(view = {}) {
+    if (!this.bannerAd && this.config.bannerAdUnitId) {
+      const width = Math.min(320, view.width || 320);
+      const top = Math.max(0, (view.height || 667) - 96);
+      this.createBanner({ left: Math.max(0, ((view.width || width) - width) / 2), top, width });
+    }
+    return this.showBanner();
   }
 
   hideBanner() {

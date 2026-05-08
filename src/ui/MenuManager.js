@@ -45,6 +45,7 @@ class MenuManager {
     this.visible = options.visible !== false;
     this.buttons = [];
     this.levelButtons = [];
+    this.leaderboardState = options.leaderboardState || { rows: [] };
     this.settings = { sound: true, lowMotion: false, colorblind: false };
     this.progressKey = options.progressKey || 'ccgs.progress.v0';
     this.progress = options.progress || this.loadProgress();
@@ -79,6 +80,7 @@ class MenuManager {
   update(options = {}) {
     if (options.progress) this.progress = { ...this.progress, ...options.progress };
     if (options.settings) this.settings = { ...this.settings, ...options.settings };
+    if (options.leaderboardState) this.leaderboardState = { ...this.leaderboardState, ...options.leaderboardState };
   }
 
   getStorage() {
@@ -138,9 +140,17 @@ class MenuManager {
   }
 
   drawButton(ctx, button) {
+    ctx.save();
+    ctx.shadowColor = button.primary ? 'rgba(141,215,255,0.20)' : 'rgba(0,0,0,0.12)';
+    ctx.shadowBlur = button.primary ? 14 : 8;
     roundRect(ctx, button.x, button.y, button.width, button.height, 17);
     ctx.fillStyle = button.primary ? this.colors.accent : this.colors.card2;
     ctx.fill();
+    ctx.strokeStyle = button.primary ? 'rgba(141,215,255,0.30)' : 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+
     ctx.fillStyle = button.primary ? '#09111F' : this.colors.text;
     ctx.font = 'bold 16px sans-serif';
     ctx.textAlign = 'center';
@@ -161,14 +171,93 @@ class MenuManager {
 
   drawMain(ctx) {
     this.drawTitle(ctx, 'menu.subtitle');
-    const w = Math.min(270, this.width - 70);
+    const w = Math.min(280, this.width - 56);
     const x = (this.width - w) / 2;
+    const cardY = 180;
+    roundRect(ctx, x, cardY, w, 320, 22);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = this.colors.muted;
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(this.t('menu.dailyChallenge'), x + 18, cardY + 16);
+    ctx.fillText(this.t('menu.leaderboard'), x + 18, cardY + 170);
+
     this.buttons = [
-      this.createButton('start', 'menu.start', x, 210, w, 48, true),
-      this.createButton('levelSelect', 'menu.levelSelect', x, 270, w, 48),
-      this.createButton('settings', 'menu.settings', x, 330, w, 48)
+      this.createButton('start', 'menu.start', x + 18, 224, w - 36, 48, true),
+      this.createButton('levelSelect', 'menu.levelSelect', x + 18, 282, w - 36, 48),
+      this.createButton('dailyChallenge', 'menu.dailyChallenge', x + 18, 340, w - 36, 48),
+      this.createButton('leaderboard', 'menu.leaderboard', x + 18, 398, w - 36, 48),
+      this.createButton('settings', 'menu.settings', x + 18, 456, w - 36, 48)
     ];
     this.buttons.forEach((button) => this.drawButton(ctx, button));
+  }
+
+  drawLeaderboard(ctx) {
+    this.drawTitle(ctx, 'menu.leaderboardSubtitle');
+    this.buttons = [this.createButton('back', 'menu.back', 18, 34, 76, 36)];
+    this.buttons.forEach((button) => this.drawButton(ctx, button));
+
+    const rows = (this.leaderboardState && this.leaderboardState.rows) || [];
+    const cardX = 24;
+    const cardW = this.width - 48;
+    const usesOpenDataContext = this.leaderboardState && this.leaderboardState.usesOpenDataContext;
+    roundRect(ctx, cardX, 160, cardW, Math.min(470, this.height - 190), 20);
+    ctx.fillStyle = 'rgba(255,255,255,0.07)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = this.colors.muted;
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(this.t('menu.dailyChallenge'), cardX + 16, 172);
+
+    if (usesOpenDataContext) {
+      ctx.fillStyle = this.colors.card2;
+      roundRect(ctx, cardX + 16, 206, cardW - 32, 84, 16);
+      ctx.fill();
+      ctx.fillStyle = this.colors.muted;
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.t('menu.leaderboardLoading'), this.width / 2, 248);
+      return;
+    }
+    if (!rows.length) {
+      ctx.fillStyle = this.colors.card2;
+      roundRect(ctx, cardX + 16, 206, cardW - 32, 84, 16);
+      ctx.fill();
+      ctx.fillStyle = this.colors.muted;
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(this.t('menu.leaderboardEmpty'), this.width / 2, 248);
+      return;
+    }
+
+    rows.slice(0, 8).forEach((row, index) => {
+      const y = 206 + index * 48;
+      roundRect(ctx, cardX + 16, y, cardW - 32, 38, 14);
+      ctx.fillStyle = index === 0 ? this.colors.card2 : this.colors.card;
+      ctx.fill();
+      ctx.fillStyle = this.colors.gold;
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`#${row.rank || index + 1}`, cardX + 32, y + 19);
+      ctx.fillStyle = this.colors.text;
+      ctx.fillText(row.nickname || 'Player', cardX + 80, y + 19);
+      ctx.textAlign = 'right';
+      ctx.fillText(`${row.bestMoves || '-'} ${this.t('hud.moves')}`, cardX + cardW - 32, y + 19);
+    });
   }
 
   drawPaused(ctx) {
@@ -235,6 +324,7 @@ class MenuManager {
     if (this.screen === 'levelSelect') this.drawLevelSelect(ctx);
     else if (this.screen === 'paused') this.drawPaused(ctx);
     else if (this.screen === 'settings') this.drawSettings(ctx);
+    else if (this.screen === 'leaderboard') this.drawLeaderboard(ctx);
     else this.drawMain(ctx);
     ctx.restore();
   }
@@ -258,6 +348,8 @@ class MenuManager {
     if (!button) return null;
 
     if (button.action === 'levelSelect') this.screen = 'levelSelect';
+    if (button.action === 'dailyChallenge') this.screen = 'main';
+    if (button.action === 'leaderboard') this.screen = 'leaderboard';
     if (button.action === 'settings') this.screen = 'settings';
     if (button.action === 'main') this.screen = 'main';
     if (button.action === 'back') this.screen = 'main';

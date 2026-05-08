@@ -14,6 +14,9 @@ const MenuManager = safeRequire('./src/ui/MenuManager', NullWidget);
 const ResultPanel = safeRequire('./src/ui/ResultPanel', NullWidget);
 const AdManager = safeRequire('./src/monetization/AdManager', null);
 const ItemManager = safeRequire('./src/monetization/ItemManager', null);
+const ShareManager = safeRequire('./src/social/ShareManager', null);
+const LeaderboardManager = safeRequire('./src/social/LeaderboardManager', null);
+const DailyChallenge = safeRequire('./src/social/DailyChallenge', null);
 const LEVELS_DATA = safeJsonRequire('./src/data/levels.json', { levels: [] });
 const TUTORIALS_DATA = safeJsonRequire('./src/data/tutorials.json', { tutorials: {} });
 const STRINGS = safeJsonRequire('./src/data/strings.json', {});
@@ -21,6 +24,7 @@ const THEME_DATA = safeJsonRequire('./assets/themes/themes.json', { themes: {} }
 
 const BOARD_COLS = 8;
 const BOARD_ROWS = 6;
+const GAME_MEMORY_STORAGE = {};
 
 function safeRequire(path, fallback) {
   try {
@@ -286,7 +290,7 @@ function flattenBoardTiles(board) {
 class CausalChainGame {
   constructor(options) {
     this.options = options || {};
-    this.wx = typeof wx !== 'undefined' ? wx : null;
+    this.wx = this.options.wx || this.options.wxApi || (typeof wx !== 'undefined' ? wx : null);
     this.canvasInfo = createCanvas(this.wx, this.options);
     this.canvas = this.canvasInfo.canvas;
     this.ctx = this.canvasInfo.ctx;
@@ -300,11 +304,18 @@ class CausalChainGame {
     this.currentLevel = getLevelDefinition(this.currentLevelId);
     this.currentTheme = getThemeDefinition(this.currentLevel.theme);
     this.startedAt = now();
+    this.levelCompleted = false;
+    this.lastCompletedResult = null;
+    this.shareReviveKey = 'ccgs.shareRevive.v0';
+    this.shareReviveLimit = 3;
 
     this.board = this.createBoard();
     this.engine = this.createEngine(this.board);
     this.adManager = AdManager ? new AdManager({ wxApi: this.wx, mock: !this.wx }) : null;
     this.itemManager = ItemManager ? new ItemManager({ adManager: this.adManager }) : null;
+    this.shareManager = ShareManager ? new ShareManager({ wxApi: this.wx, appTitle: 'Causal Chain' }) : null;
+    this.leaderboardManager = LeaderboardManager ? new LeaderboardManager({ wxApi: this.wx }) : null;
+    this.dailyChallenge = DailyChallenge ? new DailyChallenge({ wxApi: this.wx }) : null;
     if (this.itemManager && typeof this.itemManager.startLevel === 'function') {
       this.itemManager.startLevel(this.currentLevelId, { grants: this.currentLevel.rewards || null });
     }
@@ -407,17 +418,11 @@ class CausalChainGame {
       return;
     }
     events.on('level:complete', (payload) => {
-      this.effects.playCelebration(this.boardRenderer.getBoardRect());
-      if (this.resultPanel && typeof this.resultPanel.show === 'function') {
-        this.resultPanel.show('win', this.buildResultState(payload));
-      }
+      this.showLevelComplete(payload);
     });
     events.on('match:success', (payload) => {
       if (payload && payload.status === 'won') {
-        this.effects.playCelebration(this.boardRenderer.getBoardRect());
-        if (this.resultPanel && typeof this.resultPanel.show === 'function') {
-          this.resultPanel.show('win', this.buildResultState(payload));
-        }
+        this.showLevelComplete(payload);
       }
     });
   }
@@ -428,8 +433,7 @@ class CausalChainGame {
     }
     this.pathRenderer.recordMove(result, this.boardRenderer);
     if (result.completed || result.status === 'won') {
-      this.effects.playCelebration(this.boardRenderer.getBoardRect());
-      this.resultPanel.show('win', this.buildResultState(result));
+      this.showLevelComplete(result);
     } else if (result.status === 'lost') {
       this.resultPanel.show('fail', this.buildResultState(result));
     }
@@ -460,14 +464,85 @@ class CausalChainGame {
 
   buildResultState(result) {
     const hud = this.buildHudState();
+    const mode = result && result.status === 'lost' ? 'fail' : 'win';
+    const stars = calculateStars(hud.moves, hud.minimumSteps, mode);
     return {
       levelId: hud.levelId,
       moves: hud.moves,
       minimumSteps: hud.minimumSteps,
       elapsedMs: hud.elapsedMs,
       backtracks: hud.backtracks,
-      reason: result && result.reason ? result.reason : 'noMoves'
+      stars,
+      reason: result && result.reason ? result.reason : 'noMoves',
+      canShareRevive: mode === 'fail' && this.canUseShareRevive(),
+      shareReviveRemaining: this.getShareReviveRemaining()
     };
+  }
+
+  showLevelComplete(result) {
+    const resultState = this.buildResultState(result);
+    if (this.levelCompleted) {
+      if (this.resultPanel && typeof this.resultPanel.show === 'function') {
+        this.resultPanel.show('win', this.lastCompletedResult || resultState);
+      }
+      return;
+    }
+    if (!this.levelCompleted) {
+      this.levelCompleted = true;
+      const wasCleared = Boolean(this.menu && this.menu.progress && this.menu.progress.stars &&
+        this.menu.progress.stars[resultState.levelId]);
+      resultState.shareTrigger = this.resolveCompletionShareTrigger(resultState, wasCleared, null);
+      this.lastCompletedResult = resultState;
+      this.effects.playCelebration(this.boardRenderer.getBoardRect());
+      if (this.menu && typeof this.menu.setLevelResult === 'function' && !this.currentLevel.isDailyChallenge) {
+        this.menu.setLevelResult(resultState.levelId, resultState);
+      }
+      if (this.leaderboardManager && typeof this.leaderboardManager.submitLevelResult === 'function') {
+        this.leaderboardManager.submitLevelResult(resultState).then((submitState) => {
+          const shareTrigger = this.resolveCompletionShareTrigger(resultState, wasCleared, submitState);
+          resultState.shareTrigger = shareTrigger;
+          this.lastCompletedResult = resultState;
+          if (this.resultPanel && typeof this.resultPanel.update === 'function') {
+        this.resultPanel.update({
+              shareTrigger,
+              personalBest: submitState && submitState.isPersonalBest,
+              beatFriendRecord: submitState && submitState.beatFriendRecord
+            });
+          }
+        }).catch(() => {});
+      }
+      if (this.currentLevel && this.currentLevel.isDailyChallenge && this.dailyChallenge) {
+        this.dailyChallenge.submitResult({ ...resultState, dateKey: this.currentLevel.dateKey }).then((dailyState) => {
+          const reward = this.dailyChallenge.claimReward(this.itemManager, this.currentLevel.dateKey);
+          if (this.resultPanel && typeof this.resultPanel.update === 'function') {
+            this.resultPanel.update({
+              dailyRank: dailyState.rank || null,
+              dailyReward: reward && reward.success ? reward.granted : null
+            });
+          }
+        }).catch(() => {});
+      }
+      if (this.adManager && typeof this.adManager.showInterstitialAfterLevel === 'function') {
+        this.adManager.showInterstitialAfterLevel(resultState.levelId).catch(() => {});
+      }
+    }
+    if (this.resultPanel && typeof this.resultPanel.show === 'function') {
+      this.resultPanel.show('win', resultState);
+    }
+    this.showResultBanner();
+  }
+
+  resolveCompletionShareTrigger(resultState, wasCleared, submitState) {
+    if (submitState && submitState.beatFriendRecord) {
+      return 'friend_record';
+    }
+    if (submitState && submitState.isPersonalBest && submitState.previousRecord) {
+      return 'new_record';
+    }
+    if (!wasCleared && Number(resultState.levelId) <= 10) {
+      return 'first_ten_clear';
+    }
+    return 'clear';
   }
 
   handleTap(x, y) {
@@ -492,6 +567,8 @@ class CausalChainGame {
     if (command.type === 'menu.action') {
       if (command.action === 'start' || command.action === 'resume') this.menu.hide();
       if (command.action === 'restart') this.restartLevel();
+      if (command.action === 'leaderboard') this.showLeaderboard();
+      if (command.action === 'dailyChallenge') this.startDailyChallenge();
       return;
     }
     if (command.type === 'menu.level' && !command.locked) {
@@ -511,8 +588,113 @@ class CausalChainGame {
       if (command.action === 'retry' || command.action === 'restart') this.restartLevel();
       if (command.action === 'next') this.loadLevel(this.currentLevelId + 1);
       if (command.action === 'undo') this.undoLastMove();
-      if (command.action === 'adRevive') this.useToolbarItem('freeze');
+      if (command.action === 'adRevive') this.adRevive();
+      if (command.action === 'share') this.shareCurrentResult(command.result);
+      if (command.action === 'shareRevive') this.shareDeadlockRevive(command.result);
+      if (command.action === 'doubleReward') this.doubleReward(command.result);
     }
+  }
+
+  showLeaderboard() {
+    if (this.menu && typeof this.menu.show === 'function') {
+      this.menu.show('leaderboard');
+    }
+    if (!this.leaderboardManager || typeof this.leaderboardManager.showFriendLeaderboard !== 'function') {
+      return;
+    }
+    this.leaderboardManager.showFriendLeaderboard(this.currentLevelId).then((state) => {
+      callWidget(this.menu, 'update', {
+        leaderboardState: {
+          levelId: this.currentLevelId,
+          rows: state.rows || [],
+          usesOpenDataContext: Boolean(state.usesOpenDataContext)
+        }
+      });
+    });
+  }
+
+  shareCurrentResult(result) {
+    if (!this.shareManager || typeof this.shareManager.shareResult !== 'function') {
+      return;
+    }
+    const shareResult = {
+      ...this.buildResultState(result || {}),
+      ...(result || {})
+    };
+    if (this.leaderboardManager && typeof this.leaderboardManager.getRankingPercent === 'function') {
+      shareResult.rankingPercent = this.leaderboardManager.getRankingPercent(shareResult.levelId, shareResult.moves);
+    }
+    const pathData = this.exportSharePathData();
+    this.shareManager.shareResult(shareResult, pathData);
+  }
+
+  shareDeadlockRevive(result) {
+    if (!this.canUseShareRevive() || !this.shareManager || typeof this.shareManager.shareResult !== 'function') {
+      return;
+    }
+    const shareResult = {
+      ...this.buildResultState({ status: 'lost' }),
+      ...(result || {}),
+      shareTrigger: 'share_revive'
+    };
+    this.shareManager.shareResult(shareResult, this.exportSharePathData()).then(() => {
+      this.markShareReviveUsed();
+      const undoResult = this.undoLastMove();
+      if (!undoResult || undoResult.success !== false) {
+        callWidget(this.resultPanel, 'hide');
+      }
+    }).catch(() => {});
+  }
+
+  adRevive() {
+    if (!this.adManager || typeof this.adManager.requestRevive !== 'function') {
+      this.useToolbarItem('freeze');
+      return;
+    }
+    this.adManager.requestRevive().then((adResult) => {
+      if (!adResult || !adResult.success) return;
+      const undoResult = this.undoLastMove();
+      if (!undoResult || undoResult.success !== false) {
+        callWidget(this.resultPanel, 'hide');
+      }
+    }).catch(() => {});
+  }
+
+  doubleReward(result) {
+    if (!this.adManager || typeof this.adManager.requestDoubleScore !== 'function') return;
+    this.adManager.requestDoubleScore().then((adResult) => {
+      if (!adResult || !adResult.success) return;
+      if (this.itemManager && typeof this.itemManager.grantItems === 'function') {
+        this.itemManager.grantItems({ reveal: 1 });
+      }
+      callWidget(this.resultPanel, 'update', {
+        ...(result || {}),
+        doubleRewardClaimed: true,
+        rewardMultiplier: 2
+      });
+    }).catch(() => {});
+  }
+
+  showResultBanner() {
+    if (this.adManager && typeof this.adManager.showResultBanner === 'function') {
+      this.adManager.showResultBanner({ width: this.width, height: this.height }).catch(() => {});
+    }
+  }
+
+  exportSharePathData() {
+    const history = this.pathRenderer && typeof this.pathRenderer.getHistory === 'function'
+      ? this.pathRenderer.getHistory()
+      : [];
+    if (history.length > 0) {
+      return history[history.length - 1];
+    }
+    if (this.pathRenderer && typeof this.pathRenderer.exportPathData === 'function') {
+      return this.pathRenderer.exportPathData(this.getCausalInsight(), this.boardRenderer, {
+        source: 'share',
+        createdAt: Date.now()
+      });
+    }
+    return { nodes: [], edges: [] };
   }
 
   useToolbarItem(itemId) {
@@ -538,8 +720,56 @@ class CausalChainGame {
   }
 
   undoLastMove() {
-    if (this.engine && typeof this.engine.undo === 'function') return this.engine.undo();
+    if (this.engine && typeof this.engine.undo === 'function') {
+      const result = this.engine.undo();
+      if (!result || result.success !== false) {
+        callWidget(this.resultPanel, 'hide');
+      }
+      return result;
+    }
     return false;
+  }
+
+  canUseShareRevive() {
+    return this.getShareReviveRemaining() > 0;
+  }
+
+  markShareReviveUsed() {
+    const state = this.getShareReviveState();
+    state.count += 1;
+    this.setStoredValue(this.shareReviveKey, state);
+  }
+
+  getShareReviveState() {
+    const today = getLocalDateKey();
+    const stored = this.getStoredValue(this.shareReviveKey);
+    if (stored && typeof stored === 'object' && stored.date === today) {
+      return { date: today, count: Number(stored.count || 0) };
+    }
+    if (stored === today) {
+      return { date: today, count: 1 };
+    }
+    return { date: today, count: 0 };
+  }
+
+  getShareReviveRemaining() {
+    const state = this.getShareReviveState();
+    return Math.max(0, this.shareReviveLimit - state.count);
+  }
+
+  getStoredValue(key) {
+    if (this.wx && typeof this.wx.getStorageSync === 'function') {
+      return this.wx.getStorageSync(key);
+    }
+    return GAME_MEMORY_STORAGE[key];
+  }
+
+  setStoredValue(key, value) {
+    if (this.wx && typeof this.wx.setStorageSync === 'function') {
+      this.wx.setStorageSync(key, value);
+      return;
+    }
+    GAME_MEMORY_STORAGE[key] = value;
   }
 
   shuffleBoard() {
@@ -558,9 +788,16 @@ class CausalChainGame {
 
   loadLevel(levelId) {
     this.currentLevelId = Math.max(1, Math.min(levelId, (LEVELS_DATA.levels || []).length || levelId));
-    this.currentLevel = getLevelDefinition(this.currentLevelId);
+    this.loadLevelDefinition(getLevelDefinition(this.currentLevelId));
+  }
+
+  loadLevelDefinition(levelDefinition) {
+    this.currentLevel = levelDefinition;
+    this.currentLevelId = levelDefinition.id || levelDefinition.levelId || this.currentLevelId;
     this.currentTheme = getThemeDefinition(this.currentLevel.theme);
     this.startedAt = now();
+    this.levelCompleted = false;
+    this.lastCompletedResult = null;
     this.board = this.createBoard();
     this.engine = this.createEngine(this.board);
     if (this.touch) {
@@ -573,6 +810,18 @@ class CausalChainGame {
     if (this.itemManager && typeof this.itemManager.startLevel === 'function') {
       this.itemManager.startLevel(this.currentLevelId, { grants: this.currentLevel.rewards || null });
     }
+    if (this.adManager && typeof this.adManager.hideBanner === 'function') {
+      this.adManager.hideBanner();
+    }
+  }
+
+  startDailyChallenge() {
+    if (!this.dailyChallenge || typeof this.dailyChallenge.getTodayChallenge !== 'function') return Promise.resolve(null);
+    return this.dailyChallenge.getTodayChallenge().then((challenge) => {
+      this.loadLevelDefinition({ ...challenge, id: challenge.levelId, isDailyChallenge: true });
+      if (this.menu && typeof this.menu.hide === 'function') this.menu.hide();
+      return challenge;
+    }).catch(() => {});
   }
 
   start() {
@@ -633,6 +882,10 @@ class CausalChainGame {
     callWidget(this.toolbar, 'draw', ctx, this.width, this.height, state);
     callWidget(this.tutorial, 'draw', ctx, this.width, this.height, state);
     callWidget(this.menu, 'draw', ctx, this.width, this.height, state);
+    if (this.menu && this.menu.visible && this.menu.screen === 'leaderboard' &&
+      this.leaderboardManager && typeof this.leaderboardManager.drawOpenDataContext === 'function') {
+      this.leaderboardManager.drawOpenDataContext(ctx, 28, 168, this.width - 56, Math.min(420, this.height - 220));
+    }
     callWidget(this.resultPanel, 'draw', ctx, this.width, this.height, state);
   }
 }
@@ -672,6 +925,20 @@ function normalizeStatus(status) {
   if (status === 'won' || status === 'completed') return 'win';
   if (status === 'lost') return 'fail';
   return status || 'playing';
+}
+
+function calculateStars(moves, minimumSteps, mode) {
+  if (mode === 'fail') return 0;
+  if (!minimumSteps || moves <= minimumSteps) return 3;
+  if (moves <= minimumSteps + 3) return 2;
+  return 1;
+}
+
+function getLocalDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function createCanvas(wxApi, options) {
@@ -756,7 +1023,55 @@ function drawBackground(ctx, width, height, time, theme) {
   ctx.fillRect(0, 0, width, height);
 
   const t = (time || 0) * 0.001;
-  ctx.globalAlpha = 0.15;
+
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  const halo = ctx.createRadialGradient ? ctx.createRadialGradient(width * 0.5, height * 0.22, 8, width * 0.5, height * 0.22, Math.max(width, height) * 0.7) : null;
+  if (halo && halo.addColorStop) {
+    halo.addColorStop(0, 'rgba(141,215,255,0.22)');
+    halo.addColorStop(0.55, 'rgba(141,215,255,0.08)');
+    halo.addColorStop(1, 'rgba(141,215,255,0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(0, 0, width, height);
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.fillStyle = '#67e8f9';
+  for (let i = 0; i < 3; i += 1) {
+    const x = width * (0.18 + i * 0.31) + Math.sin(t * 0.6 + i) * 18;
+    const y = height * (0.24 + i * 0.19) + Math.cos(t * 0.4 + i) * 12;
+    const radius = Math.max(width, height) * (0.14 + i * 0.03);
+    const glow = ctx.createRadialGradient ? ctx.createRadialGradient(x, y, 10, x, y, radius) : null;
+    if (glow && glow.addColorStop) {
+      glow.addColorStop(0, 'rgba(103,232,249,0.14)');
+      glow.addColorStop(0.7, 'rgba(103,232,249,0.05)');
+      glow.addColorStop(1, 'rgba(103,232,249,0)');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.lineWidth = 1;
+  const spacing = 48;
+  for (let row = -1; row < Math.ceil(height / spacing) + 1; row += 1) {
+    const y = row * spacing + Math.sin(t * 0.7 + row) * 2;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha = 0.14;
   ctx.fillStyle = '#f8fafc';
   for (let i = 0; i < 18; i += 1) {
     const x = (i * 83 + Math.sin(t + i) * 16) % width;
@@ -765,7 +1080,7 @@ function drawBackground(ctx, width, height, time, theme) {
     ctx.arc(x, y, 1.1 + (i % 3) * 0.45, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.globalAlpha = 1;
+  ctx.restore();
 }
 
 function createMockCanvas() {
