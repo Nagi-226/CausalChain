@@ -1,0 +1,45 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git branch*)",
+      "Bash(git rev-parse*)",
+      "Bash(dir *)",
+      "Bash(ls *)",
+      "Bash(npm *)",
+      "Bash(node *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(New-Item *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -f*)",
+      "Bash(sudo *)",
+      "Bash(*>.env*)",
+      "Bash(cat *.env*)",
+      "PowerShell(Remove-Item * -Recurse *)",
+      "Read(**/.env*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/validate-commit.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}

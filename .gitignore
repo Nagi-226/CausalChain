@@ -1,0 +1,20 @@
+# Local settings (may contain tokens/personal paths)
+.claude/settings.local.json
+
+# Session state (ephemeral, gitignored per project spec)
+production/session-state/
+production/session-logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Node modules (if ever added)
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

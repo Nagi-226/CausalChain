@@ -1,0 +1,1130 @@
+{
+  "version": "0.0.6",
+  "schema": "ccgs.levels.v2",
+  "boardDefaults": {
+    "width": 8,
+    "height": 6
+  },
+  "levels": [
+    {
+      "id": 1,
+      "nameKey": "levels.1.name",
+      "seed": "ccgs-v003-level-01",
+      "difficulty": 1,
+      "fillRate": 0.32,
+      "minimumSteps": 3,
+      "tutorialId": "tutorial-1",
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 2,
+        "icons": 2,
+        "chainLength": 1,
+        "guaranteedPairs": 3,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 10
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 2,
+      "nameKey": "levels.2.name",
+      "seed": "ccgs-v003-level-02",
+      "difficulty": 1,
+      "fillRate": 0.34,
+      "minimumSteps": 4,
+      "tutorialId": "tutorial-2",
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 2,
+        "icons": 2,
+        "chainLength": 1,
+        "guaranteedPairs": 4,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 12
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 3,
+      "nameKey": "levels.3.name",
+      "seed": "ccgs-v003-level-03",
+      "difficulty": 2,
+      "fillRate": 0.36,
+      "minimumSteps": 4,
+      "tutorialId": "tutorial-3",
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 2,
+        "icons": 2,
+        "chainLength": 1,
+        "guaranteedPairs": 5,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 10
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 4,
+      "nameKey": "levels.4.name",
+      "seed": "ccgs-v003-level-04",
+      "difficulty": 2,
+      "fillRate": 0.37,
+      "minimumSteps": 5,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 2,
+        "icons": 2,
+        "chainLength": 1,
+        "guaranteedPairs": 2,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 12
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 5,
+      "nameKey": "levels.5.name",
+      "seed": "ccgs-v003-level-05",
+      "difficulty": 3,
+      "fillRate": 0.39,
+      "minimumSteps": 5,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 2,
+        "icons": 2,
+        "chainLength": 1,
+        "guaranteedPairs": 3,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 13
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 6,
+      "nameKey": "levels.6.name",
+      "seed": "ccgs-v003-level-06",
+      "difficulty": 3,
+      "fillRate": 0.41,
+      "minimumSteps": 6,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 2,
+        "chainLength": 1,
+        "guaranteedPairs": 4,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 12
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 7,
+      "nameKey": "levels.7.name",
+      "seed": "ccgs-v003-level-07",
+      "difficulty": 4,
+      "fillRate": 0.43,
+      "minimumSteps": 6,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 2,
+        "chainLength": 1,
+        "guaranteedPairs": 5,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 13
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 8,
+      "nameKey": "levels.8.name",
+      "seed": "ccgs-v003-level-08",
+      "difficulty": 4,
+      "fillRate": 0.45,
+      "minimumSteps": 7,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 2,
+        "chainLength": 1,
+        "guaranteedPairs": 2,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 15
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 9,
+      "nameKey": "levels.9.name",
+      "seed": "ccgs-v003-level-09",
+      "difficulty": 5,
+      "fillRate": 0.46,
+      "minimumSteps": 7,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 1,
+        "guaranteedPairs": 3,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 13
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 10,
+      "nameKey": "levels.10.name",
+      "seed": "ccgs-v003-level-10",
+      "difficulty": 5,
+      "fillRate": 0.48,
+      "minimumSteps": 8,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 1,
+        "guaranteedPairs": 4,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 15
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 11,
+      "nameKey": "levels.11.name",
+      "seed": "ccgs-v003-level-11",
+      "difficulty": 6,
+      "fillRate": 0.5,
+      "minimumSteps": 9,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 1,
+        "guaranteedPairs": 5,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 17
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 12,
+      "nameKey": "levels.12.name",
+      "seed": "ccgs-v003-level-12",
+      "difficulty": 6,
+      "fillRate": 0.52,
+      "minimumSteps": 10,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 1,
+        "guaranteedPairs": 2,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 16
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 13,
+      "nameKey": "levels.13.name",
+      "seed": "ccgs-v003-level-13",
+      "difficulty": 7,
+      "fillRate": 0.54,
+      "minimumSteps": 10,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 1,
+        "guaranteedPairs": 3,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 17
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 14,
+      "nameKey": "levels.14.name",
+      "seed": "ccgs-v003-level-14",
+      "difficulty": 7,
+      "fillRate": 0.55,
+      "minimumSteps": 11,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 1,
+        "guaranteedPairs": 4,
+        "relationMode": "direct"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 19
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 15,
+      "nameKey": "levels.15.name",
+      "seed": "ccgs-v003-level-15",
+      "difficulty": 8,
+      "fillRate": 0.57,
+      "minimumSteps": 11,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "guaranteedPairs": 5,
+        "relationMode": "intro-chain"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 17
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 16,
+      "nameKey": "levels.16.name",
+      "seed": "ccgs-v003-level-16",
+      "difficulty": 8,
+      "fillRate": 0.59,
+      "minimumSteps": 12,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "guaranteedPairs": 2,
+        "relationMode": "intro-chain"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 19
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 17,
+      "nameKey": "levels.17.name",
+      "seed": "ccgs-v003-level-17",
+      "difficulty": 9,
+      "fillRate": 0.61,
+      "minimumSteps": 12,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "guaranteedPairs": 3,
+        "relationMode": "intro-chain"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 20
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 18,
+      "nameKey": "levels.18.name",
+      "seed": "ccgs-v003-level-18",
+      "difficulty": 9,
+      "fillRate": 0.63,
+      "minimumSteps": 13,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "guaranteedPairs": 4,
+        "relationMode": "intro-chain"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 19
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 19,
+      "nameKey": "levels.19.name",
+      "seed": "ccgs-v003-level-19",
+      "difficulty": 10,
+      "fillRate": 0.64,
+      "minimumSteps": 13,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "guaranteedPairs": 5,
+        "relationMode": "intro-chain"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 20
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 20,
+      "nameKey": "levels.20.name",
+      "seed": "ccgs-v003-level-20",
+      "difficulty": 10,
+      "fillRate": 0.66,
+      "minimumSteps": 14,
+      "tutorialId": null,
+      "theme": "star",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "guaranteedPairs": 2,
+        "relationMode": "intro-chain"
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 22
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 21,
+      "nameKey": "levels.21.name",
+      "seed": "ccgs-v006-level-21",
+      "difficulty": 4,
+      "fillRate": 0.492,
+      "minimumSteps": 8,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "relationMode": "chain",
+        "guaranteedPairs": 4
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 16
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 22,
+      "nameKey": "levels.22.name",
+      "seed": "ccgs-v006-level-22",
+      "difficulty": 4,
+      "fillRate": 0.504,
+      "minimumSteps": 9,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "relationMode": "chain",
+        "guaranteedPairs": 5
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 17
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 23,
+      "nameKey": "levels.23.name",
+      "seed": "ccgs-v006-level-23",
+      "difficulty": 4,
+      "fillRate": 0.516,
+      "minimumSteps": 9,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "relationMode": "chain",
+        "guaranteedPairs": 3
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 18
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 24,
+      "nameKey": "levels.24.name",
+      "seed": "ccgs-v006-level-24",
+      "difficulty": 4,
+      "fillRate": 0.528,
+      "minimumSteps": 10,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "relationMode": "chain",
+        "guaranteedPairs": 4
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 18
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 25,
+      "nameKey": "levels.25.name",
+      "seed": "ccgs-v006-level-25",
+      "difficulty": 4,
+      "fillRate": 0.54,
+      "minimumSteps": 10,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "relationMode": "chain",
+        "guaranteedPairs": 5
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 19
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 26,
+      "nameKey": "levels.26.name",
+      "seed": "ccgs-v006-level-26",
+      "difficulty": 5,
+      "fillRate": 0.552,
+      "minimumSteps": 11,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "relationMode": "chain",
+        "guaranteedPairs": 3
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 20
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 27,
+      "nameKey": "levels.27.name",
+      "seed": "ccgs-v006-level-27",
+      "difficulty": 5,
+      "fillRate": 0.564,
+      "minimumSteps": 11,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "relationMode": "chain",
+        "guaranteedPairs": 4
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 20
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 28,
+      "nameKey": "levels.28.name",
+      "seed": "ccgs-v006-level-28",
+      "difficulty": 5,
+      "fillRate": 0.576,
+      "minimumSteps": 12,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 2,
+        "relationMode": "chain",
+        "guaranteedPairs": 5
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 21
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 29,
+      "nameKey": "levels.29.name",
+      "seed": "ccgs-v006-level-29",
+      "difficulty": 5,
+      "fillRate": 0.588,
+      "minimumSteps": 12,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 3
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 22
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 30,
+      "nameKey": "levels.30.name",
+      "seed": "ccgs-v006-level-30",
+      "difficulty": 5,
+      "fillRate": 0.6,
+      "minimumSteps": 13,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 4
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 23
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 31,
+      "nameKey": "levels.31.name",
+      "seed": "ccgs-v006-level-31",
+      "difficulty": 6,
+      "fillRate": 0.612,
+      "minimumSteps": 14,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 5
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 23
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 32,
+      "nameKey": "levels.32.name",
+      "seed": "ccgs-v006-level-32",
+      "difficulty": 6,
+      "fillRate": 0.624,
+      "minimumSteps": 14,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 3
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 24
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 33,
+      "nameKey": "levels.33.name",
+      "seed": "ccgs-v006-level-33",
+      "difficulty": 6,
+      "fillRate": 0.636,
+      "minimumSteps": 15,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 4
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 25
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 34,
+      "nameKey": "levels.34.name",
+      "seed": "ccgs-v006-level-34",
+      "difficulty": 6,
+      "fillRate": 0.648,
+      "minimumSteps": 15,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 5
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 25
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 35,
+      "nameKey": "levels.35.name",
+      "seed": "ccgs-v006-level-35",
+      "difficulty": 6,
+      "fillRate": 0.6599999999999999,
+      "minimumSteps": 16,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 3
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 26
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 36,
+      "nameKey": "levels.36.name",
+      "seed": "ccgs-v006-level-36",
+      "difficulty": 7,
+      "fillRate": 0.6719999999999999,
+      "minimumSteps": 16,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 4
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 27
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 37,
+      "nameKey": "levels.37.name",
+      "seed": "ccgs-v006-level-37",
+      "difficulty": 7,
+      "fillRate": 0.6839999999999999,
+      "minimumSteps": 17,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 5
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 27
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 38,
+      "nameKey": "levels.38.name",
+      "seed": "ccgs-v006-level-38",
+      "difficulty": 7,
+      "fillRate": 0.696,
+      "minimumSteps": 17,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 3
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 28
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 39,
+      "nameKey": "levels.39.name",
+      "seed": "ccgs-v006-level-39",
+      "difficulty": 7,
+      "fillRate": 0.708,
+      "minimumSteps": 18,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 4
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 29
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    },
+    {
+      "id": 40,
+      "nameKey": "levels.40.name",
+      "seed": "ccgs-v006-level-40",
+      "difficulty": 7,
+      "fillRate": 0.72,
+      "minimumSteps": 19,
+      "tutorialId": null,
+      "theme": "ocean",
+      "board": {
+        "width": 8,
+        "height": 6
+      },
+      "generator": {
+        "colors": 3,
+        "icons": 3,
+        "chainLength": 3,
+        "relationMode": "chain",
+        "guaranteedPairs": 5
+      },
+      "goals": {
+        "clearAll": true,
+        "moveBudget": 30
+      },
+      "rewards": {
+        "starsToUnlockNext": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,241 @@
+{
+  "locale": "en-US",
+  "hud": {
+    "level": "Level",
+    "moves": "Moves",
+    "minimum": "Best",
+    "time": "Time",
+    "backtracks": "Rewinds"
+  },
+  "state": {
+    "ready": "Ready",
+    "playing": "Playing",
+    "paused": "Paused",
+    "win": "Closed Loop",
+    "won": "Closed Loop",
+    "fail": "Deadlock",
+    "lost": "Deadlock"
+  },
+  "toolbar": {
+    "ad": "Ad +1",
+    "limit": "Limit"
+  },
+  "items": {
+    "freeze": {
+      "name": "Freeze",
+      "desc": "Stop the next rewind wave."
+    },
+    "reveal": {
+      "name": "Reveal",
+      "desc": "Highlight one causal path for 3 seconds."
+    },
+    "undo": {
+      "name": "Undo",
+      "desc": "Undo the last elimination and rewind."
+    },
+    "shuffle": {
+      "name": "Shuffle",
+      "desc": "Rearrange remaining tiles."
+    }
+  },
+  "menu": {
+    "title": "Causal Chain",
+    "subtitle": "Drag a cause into its matching effect.",
+    "start": "Start",
+    "levelSelect": "Levels",
+    "settings": "Settings",
+    "paused": "Paused",
+    "resume": "Resume",
+    "restart": "Restart",
+    "main": "Main Menu",
+    "back": "Back"
+  },
+  "settings": {
+    "soundOn": "Sound: On",
+    "soundOff": "Sound: Off",
+    "motionFull": "Motion: Full",
+    "motionLow": "Motion: Reduced",
+    "colorblindOn": "Color Assist: On",
+    "colorblindOff": "Color Assist: Off"
+  },
+  "result": {
+    "win": {
+      "title": "Causal Loop Closed"
+    },
+    "fail": {
+      "title": "Timeline Deadlock",
+      "reason": {
+        "noMoves": "No legal eliminations remain.",
+        "moveBudget": "Move budget spent before the board cleared.",
+        "unknown": "This timeline cannot continue."
+      }
+    },
+    "stats": {
+      "moves": "Moves",
+      "time": "Time",
+      "backtracks": "Rewinds"
+    },
+    "buttons": {
+      "share": "Share Chain",
+      "retry": "Retry",
+      "next": "Next Level",
+      "undo": "Rewind One Step",
+      "restart": "Restart",
+      "adRevive": "Watch Ad"
+    }
+  },
+  "tutorial": {
+    "1": {
+      "title": "First Cause",
+      "tapCause": "Hold a cause tile. It rises and follows your finger.",
+      "dragEffect": "Drop it onto an adjacent effect with the same color and icon.",
+      "watchBacktrack": "Each elimination sends a rewind ripple through nearby tiles."
+    },
+    "2": {
+      "title": "Fewer Moves",
+      "minimumSteps": "The best move target is the three-star reference.",
+      "chooseOrder": "Good order opens later matches instead of trapping them."
+    },
+    "3": {
+      "title": "Items",
+      "itemsIntro": "Freeze, Reveal, Undo, and Shuffle sit in the bottom toolbar.",
+      "revealTip": "Use Reveal when stuck to preview a complete causal path."
+    },
+    "title": "Tutorial",
+    "skip": "Skip",
+    "next": "Next",
+    "done": "Start"
+  },
+  "levels": {
+    "1": {
+      "name": "Origin"
+    },
+    "2": {
+      "name": "Adjacent"
+    },
+    "3": {
+      "name": "Observation"
+    },
+    "4": {
+      "name": "Echo"
+    },
+    "5": {
+      "name": "Offset"
+    },
+    "6": {
+      "name": "Starlit"
+    },
+    "7": {
+      "name": "Choice"
+    },
+    "8": {
+      "name": "Short Path"
+    },
+    "9": {
+      "name": "Ripple"
+    },
+    "10": {
+      "name": "Loop"
+    },
+    "11": {
+      "name": "Tide"
+    },
+    "12": {
+      "name": "Undercurrent"
+    },
+    "13": {
+      "name": "Return"
+    },
+    "14": {
+      "name": "Afterimage"
+    },
+    "15": {
+      "name": "Twin Chain"
+    },
+    "16": {
+      "name": "Reverse Tide"
+    },
+    "17": {
+      "name": "Floating Mark"
+    },
+    "18": {
+      "name": "Distant Cause"
+    },
+    "19": {
+      "name": "Deep Blue"
+    },
+    "20": {
+      "name": "Endpoint"
+    },
+    "21": {
+      "name": "First Tide"
+    },
+    "22": {
+      "name": "Ripple Gate"
+    },
+    "23": {
+      "name": "Blue Cause"
+    },
+    "24": {
+      "name": "Foam Trace"
+    },
+    "25": {
+      "name": "Undertow"
+    },
+    "26": {
+      "name": "Mirror Current"
+    },
+    "27": {
+      "name": "Pearl Step"
+    },
+    "28": {
+      "name": "Shell Chain"
+    },
+    "29": {
+      "name": "Two Waves"
+    },
+    "30": {
+      "name": "Drift Lock"
+    },
+    "31": {
+      "name": "Deep Ripple"
+    },
+    "32": {
+      "name": "Anchor Point"
+    },
+    "33": {
+      "name": "Coral Thread"
+    },
+    "34": {
+      "name": "Moon Tide"
+    },
+    "35": {
+      "name": "Hidden Flow"
+    },
+    "36": {
+      "name": "Blue Return"
+    },
+    "37": {
+      "name": "Kelp Knot"
+    },
+    "38": {
+      "name": "Abyss Link"
+    },
+    "39": {
+      "name": "Whale Echo"
+    },
+    "40": {
+      "name": "Tide Endpoint"
+    }
+  },
+  "theme": {
+    "star": {
+      "name": "Starlight",
+      "desc": "Direct causal sparks in a night sky."
+    },
+    "ocean": {
+      "name": "Ripple Sea",
+      "desc": "Chain reactions travel like waves."
+    }
+  }
+}

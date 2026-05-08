@@ -1,0 +1,29 @@
+{
+  "version": "0.0.6",
+  "themes": {
+    "star": {
+      "name": "Starlight",
+      "background": ["#111827", "#172554", "#0f172a"],
+      "panel": "rgba(15,23,42,0.58)",
+      "grid": "rgba(2,6,23,0.34)",
+      "ripple": "#8dd7ff",
+      "palette": {
+        "crimson": "#ef4444",
+        "azure": "#38bdf8",
+        "gold": "#f59e0b"
+      }
+    },
+    "ocean": {
+      "name": "Ripple Sea",
+      "background": ["#082f49", "#0f766e", "#022c22"],
+      "panel": "rgba(6,78,59,0.54)",
+      "grid": "rgba(8,47,73,0.38)",
+      "ripple": "#67e8f9",
+      "palette": {
+        "crimson": "#fb7185",
+        "azure": "#22d3ee",
+        "gold": "#facc15"
+      }
+    }
+  }
+}

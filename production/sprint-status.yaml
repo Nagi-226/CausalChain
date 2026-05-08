@@ -1,0 +1,68 @@
+sprint: 0
+name: v0.0.1-v0.0.5 playable foundation
+review_mode: lean
+stage: Concept
+updated_by: Codex integration
+versions:
+  v0.0.1:
+    status: done
+    modules:
+      core_engine: done_by_worker_a
+      render_input: done_by_worker_b_integrated
+      hud: done_by_worker_c
+  v0.0.2:
+    status: done
+    modules:
+      board_generation: done_by_worker_a
+      solver_validation: done_by_worker_a
+      level_parameters: done_by_worker_c
+  v0.0.3:
+    status: done
+    modules:
+      levels_1_to_20: done_by_worker_c
+      tutorials_1_to_3: done_by_worker_c
+      tutorial_ui: done_by_worker_c
+      progress_storage_menu_adapter: done_by_worker_c
+  v0.0.4:
+    status: done
+    modules:
+      menu_manager: done_by_worker_c
+      result_panel: done_by_worker_c
+      full_render_effects_integration: done_by_worker_b_integrated
+  v0.0.5:
+    status: done
+    modules:
+      toolbar: done_by_worker_c
+      item_manager: done_by_worker_c
+      ad_manager: done_by_worker_c
+      game_integration: done_by_codex
+  v0.0.6:
+    status: done
+    modules:
+      chain_causality: done_by_codex
+      chained_rewind_layers: done_by_codex
+      causal_path_visualization: done_by_codex
+      levels_1_to_40: done_by_codex
+      star_ocean_themes: done_by_codex
+      validation_tests: done_by_codex
+integration_contracts:
+  ui_api: update_draw_handleTap
+  item_effects:
+    freeze: freezeBacktrack
+    reveal: revealPath
+    undo: undoLastMove
+    shuffle: shuffleBoard
+  ad_mode: wx_rewarded_video_or_mock_success
+worker_c_owned_files:
+  - src/ui/HUD.js
+  - src/ui/Toolbar.js
+  - src/ui/Tutorial.js
+  - src/ui/ResultPanel.js
+  - src/ui/MenuManager.js
+  - src/monetization/AdManager.js
+  - src/monetization/ItemManager.js
+  - src/data/levels.json
+  - src/data/tutorials.json
+  - src/data/strings.json
+  - production/sprints/sprint-0-v0.0.1-v0.0.5.md
+  - production/sprint-status.yaml

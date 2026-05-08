@@ -1,0 +1,77 @@
+{
+  "version": "0.0.3",
+  "schema": "ccgs.tutorials.v1",
+  "tutorials": {
+    "tutorial-1": {
+      "levelIds": [1],
+      "steps": [
+        {
+          "id": "tap-cause",
+          "titleKey": "tutorial.1.title",
+          "promptKey": "tutorial.1.tapCause",
+          "highlight": { "type": "cell", "row": 2, "col": 1 },
+          "anchor": "bottom",
+          "advance": "tap"
+        },
+        {
+          "id": "drag-effect",
+          "titleKey": "tutorial.1.title",
+          "promptKey": "tutorial.1.dragEffect",
+          "highlight": { "type": "cell", "row": 2, "col": 2 },
+          "anchor": "bottom",
+          "advance": "tap"
+        },
+        {
+          "id": "watch-backtrack",
+          "titleKey": "tutorial.1.title",
+          "promptKey": "tutorial.1.watchBacktrack",
+          "highlight": { "type": "rect", "rect": { "x": 12, "y": 38, "width": 210, "height": 46 } },
+          "anchor": "top",
+          "advance": "tap"
+        }
+      ]
+    },
+    "tutorial-2": {
+      "levelIds": [2],
+      "steps": [
+        {
+          "id": "minimum-steps",
+          "titleKey": "tutorial.2.title",
+          "promptKey": "tutorial.2.minimumSteps",
+          "highlight": { "type": "rect", "rect": { "x": 96, "y": 42, "width": 78, "height": 38 } },
+          "anchor": "top",
+          "advance": "tap"
+        },
+        {
+          "id": "choose-order",
+          "titleKey": "tutorial.2.title",
+          "promptKey": "tutorial.2.chooseOrder",
+          "highlight": { "type": "cell", "row": 3, "col": 2 },
+          "anchor": "bottom",
+          "advance": "tap"
+        }
+      ]
+    },
+    "tutorial-3": {
+      "levelIds": [3],
+      "steps": [
+        {
+          "id": "items-intro",
+          "titleKey": "tutorial.3.title",
+          "promptKey": "tutorial.3.itemsIntro",
+          "highlight": { "type": "rect", "rect": { "x": 12, "y": 570, "width": 351, "height": 76 } },
+          "anchor": "top",
+          "advance": "tap"
+        },
+        {
+          "id": "reveal-tip",
+          "titleKey": "tutorial.3.title",
+          "promptKey": "tutorial.3.revealTip",
+          "highlight": { "type": "rect", "rect": { "x": 100, "y": 570, "width": 78, "height": 66 } },
+          "anchor": "top",
+          "advance": "tap"
+        }
+      ]
+    }
+  }
+}

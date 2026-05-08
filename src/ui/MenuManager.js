@@ -1,0 +1,272 @@
+const DEFAULT_COLORS = {
+  bgTop: '#09111F',
+  bgBottom: '#16263F',
+  card: 'rgba(255, 255, 255, 0.10)',
+  card2: 'rgba(255, 255, 255, 0.17)',
+  text: '#F6F8FF',
+  muted: '#A8B3CF',
+  accent: '#8DD7FF',
+  gold: '#FFD166',
+  locked: 'rgba(255, 255, 255, 0.05)'
+};
+
+function readString(strings, key) {
+  return key.split('.').reduce((node, part) => {
+    if (!node || typeof node !== 'object') return undefined;
+    return node[part];
+  }, strings) || key;
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+const MEMORY_STORAGE = {};
+
+class MenuManager {
+  constructor(options = {}) {
+    this.strings = options.strings || {};
+    this.levels = options.levels || [];
+    this.colors = { ...DEFAULT_COLORS, ...(options.colors || {}) };
+    this.width = options.width || 375;
+    this.height = options.height || 667;
+    this.screen = options.screen || 'main';
+    this.visible = options.visible !== false;
+    this.buttons = [];
+    this.levelButtons = [];
+    this.settings = { sound: true, lowMotion: false, colorblind: false };
+    this.progressKey = options.progressKey || 'ccgs.progress.v0';
+    this.progress = options.progress || this.loadProgress();
+  }
+
+  setStrings(strings) {
+    this.strings = strings || {};
+  }
+
+  setLevels(levels) {
+    this.levels = levels || [];
+  }
+
+  setLayout(width, height) {
+    this.width = width;
+    this.height = height;
+  }
+
+  t(key) {
+    return readString(this.strings, key);
+  }
+
+  show(screen = this.screen) {
+    this.visible = true;
+    this.screen = screen;
+  }
+
+  hide() {
+    this.visible = false;
+  }
+
+  update(options = {}) {
+    if (options.progress) this.progress = { ...this.progress, ...options.progress };
+    if (options.settings) this.settings = { ...this.settings, ...options.settings };
+  }
+
+  getStorage() {
+    if (typeof wx !== 'undefined' && wx.getStorageSync && wx.setStorageSync) {
+      return {
+        get: (key) => wx.getStorageSync(key),
+        set: (key, value) => wx.setStorageSync(key, value)
+      };
+    }
+    return {
+      get: (key) => MEMORY_STORAGE[key],
+      set: (key, value) => { MEMORY_STORAGE[key] = value; }
+    };
+  }
+
+  loadProgress() {
+    const saved = this.getStorage().get(this.progressKey);
+    return saved || { unlockedLevel: 1, stars: {}, bestMoves: {}, bestTimeMs: {} };
+  }
+
+  saveProgress() {
+    this.getStorage().set(this.progressKey, this.progress);
+    return this.progress;
+  }
+
+  setLevelResult(levelId, result) {
+    const previousStars = this.progress.stars[levelId] || 0;
+    this.progress.stars[levelId] = Math.max(previousStars, result.stars || 0);
+    if (!this.progress.bestMoves[levelId] || result.moves < this.progress.bestMoves[levelId]) {
+      this.progress.bestMoves[levelId] = result.moves;
+    }
+    if (!this.progress.bestTimeMs[levelId] || result.elapsedMs < this.progress.bestTimeMs[levelId]) {
+      this.progress.bestTimeMs[levelId] = result.elapsedMs;
+    }
+    this.progress.unlockedLevel = Math.max(this.progress.unlockedLevel, Number(levelId) + 1);
+    return this.saveProgress();
+  }
+
+  drawBackground(ctx) {
+    const gradient = ctx.createLinearGradient(0, 0, 0, this.height);
+    gradient.addColorStop(0, this.colors.bgTop);
+    gradient.addColorStop(1, this.colors.bgBottom);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, this.width, this.height);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    for (let i = 0; i < 18; i += 1) {
+      const x = (i * 97) % this.width;
+      const y = (i * 151) % this.height;
+      ctx.beginPath();
+      ctx.arc(x, y, 1 + (i % 3), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  createButton(action, labelKey, x, y, width, height, primary = false) {
+    return { action, labelKey, x, y, width, height, primary };
+  }
+
+  drawButton(ctx, button) {
+    roundRect(ctx, button.x, button.y, button.width, button.height, 17);
+    ctx.fillStyle = button.primary ? this.colors.accent : this.colors.card2;
+    ctx.fill();
+    ctx.fillStyle = button.primary ? '#09111F' : this.colors.text;
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(this.t(button.labelKey), button.x + button.width / 2, button.y + button.height / 2);
+  }
+
+  drawTitle(ctx, subtitleKey) {
+    ctx.fillStyle = this.colors.text;
+    ctx.font = 'bold 32px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(this.t('menu.title'), this.width / 2, 82);
+    ctx.fillStyle = this.colors.muted;
+    ctx.font = '14px sans-serif';
+    ctx.fillText(this.t(subtitleKey), this.width / 2, 124);
+  }
+
+  drawMain(ctx) {
+    this.drawTitle(ctx, 'menu.subtitle');
+    const w = Math.min(270, this.width - 70);
+    const x = (this.width - w) / 2;
+    this.buttons = [
+      this.createButton('start', 'menu.start', x, 210, w, 48, true),
+      this.createButton('levelSelect', 'menu.levelSelect', x, 270, w, 48),
+      this.createButton('settings', 'menu.settings', x, 330, w, 48)
+    ];
+    this.buttons.forEach((button) => this.drawButton(ctx, button));
+  }
+
+  drawPaused(ctx) {
+    this.drawTitle(ctx, 'menu.paused');
+    const w = Math.min(270, this.width - 70);
+    const x = (this.width - w) / 2;
+    this.buttons = [
+      this.createButton('resume', 'menu.resume', x, 220, w, 48, true),
+      this.createButton('restart', 'menu.restart', x, 280, w, 48),
+      this.createButton('main', 'menu.main', x, 340, w, 48)
+    ];
+    this.buttons.forEach((button) => this.drawButton(ctx, button));
+  }
+
+  drawSettings(ctx) {
+    this.drawTitle(ctx, 'menu.settings');
+    const w = Math.min(290, this.width - 50);
+    const x = (this.width - w) / 2;
+    this.buttons = [
+      this.createButton('toggleSound', this.settings.sound ? 'settings.soundOn' : 'settings.soundOff', x, 210, w, 48),
+      this.createButton('toggleMotion', this.settings.lowMotion ? 'settings.motionLow' : 'settings.motionFull', x, 270, w, 48),
+      this.createButton('toggleColorblind', this.settings.colorblind ? 'settings.colorblindOn' : 'settings.colorblindOff', x, 330, w, 48),
+      this.createButton('back', 'menu.back', x, 410, w, 44, true)
+    ];
+    this.buttons.forEach((button) => this.drawButton(ctx, button));
+  }
+
+  drawLevelSelect(ctx) {
+    this.drawTitle(ctx, 'menu.levelSelect');
+    this.buttons = [this.createButton('back', 'menu.back', 18, 34, 76, 36)];
+    this.buttons.forEach((button) => this.drawButton(ctx, button));
+    const columns = 5;
+    const size = Math.min(54, Math.floor((this.width - 44) / columns) - 8);
+    const startX = (this.width - columns * size - (columns - 1) * 8) / 2;
+    const startY = 176;
+    this.levelButtons = [];
+    this.levels.slice(0, 20).forEach((level, index) => {
+      const col = index % columns;
+      const row = Math.floor(index / columns);
+      const x = startX + col * (size + 8);
+      const y = startY + row * (size + 12);
+      const locked = level.id > this.progress.unlockedLevel;
+      const stars = this.progress.stars[level.id] || 0;
+      this.levelButtons.push({ levelId: level.id, x, y, width: size, height: size, locked });
+      roundRect(ctx, x, y, size, size, 14);
+      ctx.fillStyle = locked ? this.colors.locked : this.colors.card2;
+      ctx.fill();
+      ctx.fillStyle = locked ? this.colors.muted : this.colors.text;
+      ctx.font = 'bold 17px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(level.id), x + size / 2, y + size / 2 - 5);
+      ctx.fillStyle = this.colors.gold;
+      ctx.font = '11px sans-serif';
+      ctx.fillText('*'.repeat(stars), x + size / 2, y + size - 13);
+    });
+  }
+
+  draw(ctx) {
+    if (!this.visible || !ctx) return;
+    ctx.save();
+    this.drawBackground(ctx);
+    this.levelButtons = [];
+    if (this.screen === 'levelSelect') this.drawLevelSelect(ctx);
+    else if (this.screen === 'paused') this.drawPaused(ctx);
+    else if (this.screen === 'settings') this.drawSettings(ctx);
+    else this.drawMain(ctx);
+    ctx.restore();
+  }
+
+  handleTap(x, y) {
+    if (!this.visible) return null;
+    const levelButton = this.levelButtons.find((b) => (
+      x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height
+    ));
+    if (levelButton) {
+      return {
+        type: 'menu.level',
+        levelId: levelButton.levelId,
+        locked: levelButton.locked
+      };
+    }
+
+    const button = this.buttons.find((b) => (
+      x >= b.x && x <= b.x + b.width && y >= b.y && y <= b.y + b.height
+    ));
+    if (!button) return null;
+
+    if (button.action === 'levelSelect') this.screen = 'levelSelect';
+    if (button.action === 'settings') this.screen = 'settings';
+    if (button.action === 'main') this.screen = 'main';
+    if (button.action === 'back') this.screen = 'main';
+    if (button.action === 'toggleSound') this.settings.sound = !this.settings.sound;
+    if (button.action === 'toggleMotion') this.settings.lowMotion = !this.settings.lowMotion;
+    if (button.action === 'toggleColorblind') this.settings.colorblind = !this.settings.colorblind;
+
+    return { type: 'menu.action', action: button.action, screen: this.screen, settings: { ...this.settings } };
+  }
+}
+
+module.exports = MenuManager;
