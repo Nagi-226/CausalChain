@@ -3,7 +3,8 @@ const Difficulty = require('./Difficulty.js');
 
 const TILE_TYPES = Object.freeze({
   CAUSE: 'cause',
-  EFFECT: 'effect'
+  EFFECT: 'effect',
+  PARADOX: 'paradox'
 });
 
 const COLORS = Object.freeze(['crimson', 'azure', 'gold']);
@@ -55,6 +56,8 @@ class CausalEngine {
     this.eventBus = options.eventBus || new EventBus();
     this.rng = new PRNG(options.seed || Date.now());
     this.board = CausalEngine.cloneBoard(options.board || this._generateInitialBoard(options));
+    this.goals = Object.assign({ clearAll: true, moveBudget: 0 }, options.goals || {});
+    this.moveBudget = Math.max(0, Number(options.moveBudget || this.goals.moveBudget || 0));
     this.steps = 0;
     this.score = 0;
     this.rewindCount = 0;
@@ -110,20 +113,38 @@ class CausalEngine {
     if (!this.isAdjacent(sourcePos, targetPos)) {
       return { valid: false, reason: 'not_adjacent', source, target };
     }
-    if (source.type !== TILE_TYPES.CAUSE) {
-      return { valid: false, reason: 'source_not_cause', source, target };
+
+    const isParadox = (tile) => tile.type === TILE_TYPES.PARADOX;
+    const sourceParadox = isParadox(source);
+    const targetParadox = isParadox(target);
+
+    if (source.type === TILE_TYPES.CAUSE && target.type === TILE_TYPES.EFFECT) {
+      // standard cause→effect
+    } else if (sourceParadox && target.type === TILE_TYPES.EFFECT) {
+      // paradox acts as cause
+    } else if (source.type === TILE_TYPES.CAUSE && targetParadox) {
+      // paradox acts as effect
+    } else if (sourceParadox && targetParadox) {
+      // dual paradox — both can play either role
+    } else {
+      return { valid: false, reason: sourceParadox ? 'target_not_compatible' : 'source_not_cause', source, target };
     }
-    if (target.type !== TILE_TYPES.EFFECT) {
-      return { valid: false, reason: 'target_not_effect', source, target };
-    }
+
     if (source.color !== target.color || source.icon !== target.icon) {
       return { valid: false, reason: 'pair_mismatch', source, target };
     }
 
-    return { valid: true, reason: 'ok', source, target };
+    return { valid: true, reason: sourceParadox || targetParadox ? 'paradox_match' : 'ok', source, target };
   }
 
   processMove(from, to, options = {}) {
+    const statusBefore = this.getStatus();
+    if (statusBefore !== 'playing' && options.ignoreTerminal !== true) {
+      const failure = { success: false, reason: 'game_over', status: statusBefore };
+      this.eventBus.emit('match:failed', failure);
+      return failure;
+    }
+
     const sourcePos = CausalEngine.normalizePosition(from);
     const targetPos = CausalEngine.normalizePosition(to);
     const match = this.canMatch(sourcePos, targetPos);
@@ -164,10 +185,12 @@ class CausalEngine {
     };
     this.history.push({ before, move });
 
+    const status = this.getStatus();
     const result = {
       success: true,
       move,
-      status: this.getStatus(),
+      status,
+      reason: status === 'lost' ? this.getFailReason() : undefined,
       snapshot: this.getStateSnapshot({ includeHistory: false })
     };
     this.eventBus.emit('match:success', result);
@@ -243,8 +266,19 @@ class CausalEngine {
     return !this.isWin() && !this.hasLegalMove();
   }
 
+  isMoveBudgetSpent() {
+    return Boolean(this.moveBudget > 0 && this.steps >= this.moveBudget && !this.isWin());
+  }
+
+  getFailReason() {
+    if (this.isMoveBudgetSpent()) return 'moveBudget';
+    if (this.isDead()) return 'noMoves';
+    return 'unknown';
+  }
+
   getStatus() {
     if (this.isWin()) return 'won';
+    if (this.isMoveBudgetSpent()) return 'lost';
     if (this.isDead()) return 'lost';
     return 'playing';
   }
@@ -273,6 +307,9 @@ class CausalEngine {
       board: CausalEngine.cloneBoard(this.board),
       steps: this.steps,
       score: this.score,
+      goals: Object.assign({}, this.goals),
+      moveBudget: this.moveBudget,
+      remainingMoves: this.moveBudget > 0 ? Math.max(0, this.moveBudget - this.steps) : null,
       rewindCount: this.rewindCount,
       reshuffleCount: this.reshuffleCount,
       freezeNext: this.freezeNext,
@@ -293,6 +330,8 @@ class CausalEngine {
     this.board = CausalEngine.cloneBoard(snapshot.board);
     this.steps = snapshot.steps || 0;
     this.score = snapshot.score || 0;
+    this.goals = Object.assign({ clearAll: true, moveBudget: 0 }, snapshot.goals || this.goals || {});
+    this.moveBudget = Math.max(0, Number(snapshot.moveBudget || this.goals.moveBudget || 0));
     this.rewindCount = snapshot.rewindCount || 0;
     this.reshuffleCount = snapshot.reshuffleCount || 0;
     this.freezeNext = Boolean(snapshot.freezeNext);
@@ -344,6 +383,9 @@ class CausalEngine {
     let frontier = startPositions.slice();
     const layers = [];
     const depth = Math.max(1, this.difficulty.rewindDepth || 1);
+    const crossLayer = Math.max(0, this.difficulty.crossLayerDepth || 0);
+    const paradoxProb = this.difficulty.paradoxRatio || 0;
+    const hasParadoxTrigger = removed.some((item) => item.tile && item.tile.type === TILE_TYPES.PARADOX);
 
     for (let step = 1; step <= depth; step += 1) {
       const next = [];
@@ -355,8 +397,16 @@ class CausalEngine {
           col: neighbor.col,
           relation: 'adjacent'
         }));
-        for (const linked of this._getLinkedTiles(sourceTile)) {
+        for (const linked of this._getLinkedTiles(sourceTile, 1)) {
           candidates.push({ row: linked.row, col: linked.col, relation: 'chain', tileId: linked.id });
+        }
+
+        // cross-layer traversal: follow causalLinks 2-3 hops deep
+        if (crossLayer > 1 && sourceTile) {
+          const crossLinked = this._getLinkedTilesRecursive(sourceTile, crossLayer, new Set());
+          for (const crossTile of crossLinked) {
+            candidates.push({ row: crossTile.row, col: crossTile.col, relation: 'cross-chain', tileId: crossTile.id });
+          }
         }
 
         for (const neighbor of candidates) {
@@ -367,12 +417,14 @@ class CausalEngine {
           if (removedKeys.has(key)) continue;
           const tile = this.getTile(neighbor);
           if (tile) {
+            // paradox trigger: chance of extra rewind expansion
+            const relation = hasParadoxTrigger && Math.random() < paradoxProb ? 'paradox_expand' : (neighbor.relation || 'adjacent');
             layer.push({
               row: neighbor.row,
               col: neighbor.col,
               tileId: tile.id,
               depth: step,
-              relation: neighbor.relation || 'adjacent',
+              relation,
               pairId: tile.pairId || null
             });
           }
@@ -384,7 +436,7 @@ class CausalEngine {
     return layers;
   }
 
-  _getLinkedTiles(sourceTile) {
+  _getLinkedTiles(sourceTile, maxHop = 1) {
     if (!sourceTile) return [];
     const links = Array.isArray(sourceTile.causalLinks) ? sourceTile.causalLinks : [];
     const linked = [];
@@ -397,6 +449,7 @@ class CausalEngine {
     };
 
     for (const link of links) {
+      if (maxHop < 1) continue;
       if (link.targetTileId) addTile(this._findTileById(link.targetTileId));
       if (link.targetPairId) {
         this.forEachTile((tile) => {
@@ -417,6 +470,31 @@ class CausalEngine {
     return linked;
   }
 
+  _getLinkedTilesRecursive(sourceTile, maxDepth, visited) {
+    if (!sourceTile || maxDepth <= 0) return [];
+    const seen = visited || new Set();
+    seen.add(sourceTile.id);
+    const results = [];
+
+    const directLinks = this._getLinkedTiles(sourceTile);
+    for (const linked of directLinks) {
+      if (seen.has(linked.id)) continue;
+      seen.add(linked.id);
+      results.push(linked);
+      if (maxDepth > 1) {
+        const subLinks = this._getLinkedTilesRecursive(linked, maxDepth - 1, seen);
+        for (const sub of subLinks) {
+          if (!seen.has(sub.id)) {
+            seen.add(sub.id);
+            results.push(sub);
+          }
+        }
+      }
+    }
+
+    return results;
+  }
+
   _findTileById(tileId) {
     let found = null;
     this.forEachTile((tile) => {
@@ -432,15 +510,13 @@ class CausalEngine {
     for (let row = 0; row < rows; row += 1) {
       for (let col = 0; col < cols; col += 1) {
         const tile = board[row][col];
-        if (!tile || tile.type !== TILE_TYPES.CAUSE) continue;
+        if (!tile) continue;
+        if (tile.type !== TILE_TYPES.CAUSE && tile.type !== TILE_TYPES.PARADOX) continue;
         for (const neighbor of CausalEngine.getNeighbors({ row, col }, rows, cols)) {
           const target = board[neighbor.row][neighbor.col];
-          if (
-            target &&
-            target.type === TILE_TYPES.EFFECT &&
-            tile.color === target.color &&
-            tile.icon === target.icon
-          ) {
+          if (!target) continue;
+          if (target.type !== TILE_TYPES.EFFECT && target.type !== TILE_TYPES.PARADOX) continue;
+          if (tile.color === target.color && tile.icon === target.icon) {
             moves.push({
               from: { row, col },
               to: { row: neighbor.row, col: neighbor.col },

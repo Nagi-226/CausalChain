@@ -18,6 +18,8 @@ class BoardGenerator {
     const cols = options.cols || this.cols;
     const tileCount = Math.min(Difficulty.getTileCount(difficulty, rows, cols), rows * cols);
     const pairCount = tileCount / 2;
+    const paradoxRatio = difficulty.paradoxRatio || 0;
+    const crossLayerRatio = difficulty.crossLayerRatio || 0;
     const dominoes = this._makeDominoes(rows, cols);
 
     if (pairCount > dominoes.length) {
@@ -67,6 +69,16 @@ class BoardGenerator {
 
     this._annotateChains(board, solution, difficulty, rng);
 
+    // paradox conversion: flip pairs to paradox type
+    if (paradoxRatio > 0) {
+      this._convertParadox(board, pairCount, paradoxRatio, rng);
+    }
+
+    // cross-layer links: add depth-2+ causalLinks within chains
+    if (crossLayerRatio > 0) {
+      this._annotateCrossLayer(board, solution, crossLayerRatio, rng);
+    }
+
     return {
       board,
       rows,
@@ -81,6 +93,8 @@ class BoardGenerator {
         fillRate: tileCount / (rows * cols),
         tileCount,
         pairCount,
+        paradoxRatio,
+        crossLayerRatio,
         chainRange: difficulty.chainLength || [1, 1]
       }
     };
@@ -144,6 +158,74 @@ class BoardGenerator {
       }
       cursor += length;
       chainIndex += 1;
+    }
+  }
+
+  _convertParadox(board, pairCount, paradoxRatio, rng) {
+    const pairMap = new Map();
+    for (let row = 0; row < board.length; row += 1) {
+      for (let col = 0; col < board[row].length; col += 1) {
+        const tile = board[row][col];
+        if (!tile || !tile.pairId) continue;
+        if (!pairMap.has(tile.pairId)) pairMap.set(tile.pairId, []);
+        pairMap.get(tile.pairId).push(tile);
+      }
+    }
+
+    const targetCount = Math.round(pairCount * paradoxRatio);
+    const pairIds = Array.from(pairMap.keys());
+    rng.shuffle(pairIds);
+
+    let converted = 0;
+    for (const pairId of pairIds) {
+      if (converted >= targetCount) break;
+      const tiles = pairMap.get(pairId);
+      if (tiles.length !== 2) continue;
+      for (const tile of tiles) {
+        tile.type = CausalEngine.TILE_TYPES.PARADOX;
+        tile.paradox = true;
+      }
+      converted += 1;
+    }
+  }
+
+  _annotateCrossLayer(board, solution, crossLayerRatio, rng) {
+    // find chains with length >= 3, add cross-layer links between non-adjacent pairs
+    const byChain = new Map();
+    for (let row = 0; row < board.length; row += 1) {
+      for (let col = 0; col < board[row].length; col += 1) {
+        const tile = board[row][col];
+        if (!tile || !tile.chainId) continue;
+        if (!byChain.has(tile.chainId)) byChain.set(tile.chainId, new Map());
+        const chainPairs = byChain.get(tile.chainId);
+        const pairId = tile.pairId;
+        if (!chainPairs.has(pairId)) chainPairs.set(pairId, tile);
+      }
+    }
+
+    for (const [chainId, pairTiles] of byChain) {
+      const pairs = Array.from(pairTiles.entries());
+      if (pairs.length < 3) continue;
+
+      for (let i = 0; i < pairs.length; i += 1) {
+        for (let j = i + 2; j < pairs.length; j += 1) {
+          if (rng.next() > crossLayerRatio) continue;
+          const depth = j - i;
+          const srcPairId = pairs[i][0];
+          const tgtPairId = pairs[j][0];
+          const link = {
+            relation: 'cross-chain',
+            sourcePairId: srcPairId,
+            targetPairId: tgtPairId,
+            depth
+          };
+          const srcTile = pairs[i][1];
+          if (srcTile) {
+            srcTile.causalLinks = srcTile.causalLinks || [];
+            srcTile.causalLinks.push(link);
+          }
+        }
+      }
     }
   }
 

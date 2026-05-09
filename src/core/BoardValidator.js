@@ -28,18 +28,20 @@ class BoardValidator {
         if (tile.id && ids.has(tile.id)) errors.push(`tile_duplicate_id_${tile.id}`);
         if (tile.id) ids.add(tile.id);
         if (!tile.color || !tile.icon) errors.push(`tile_missing_pair_${row}_${col}`);
-        if (![CausalEngine.TILE_TYPES.CAUSE, CausalEngine.TILE_TYPES.EFFECT].includes(tile.type)) {
+        if (![CausalEngine.TILE_TYPES.CAUSE, CausalEngine.TILE_TYPES.EFFECT, CausalEngine.TILE_TYPES.PARADOX].includes(tile.type)) {
           errors.push(`tile_bad_type_${row}_${col}`);
         }
         const key = CausalEngine.getPairKey(tile);
-        if (!counts[key]) counts[key] = { cause: 0, effect: 0 };
+        if (!counts[key]) counts[key] = { cause: 0, effect: 0, paradox: 0 };
         if (tile.type === CausalEngine.TILE_TYPES.CAUSE) counts[key].cause += 1;
         if (tile.type === CausalEngine.TILE_TYPES.EFFECT) counts[key].effect += 1;
+        if (tile.type === CausalEngine.TILE_TYPES.PARADOX) counts[key].paradox += 1;
       }
     }
 
     for (const key of Object.keys(counts)) {
-      if (counts[key].cause !== counts[key].effect) {
+      const c = counts[key];
+      if (c.cause + c.paradox !== c.effect + c.paradox) {
         errors.push(`unbalanced_pair_${key}`);
       }
     }
