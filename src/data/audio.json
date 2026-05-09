@@ -1,0 +1,11 @@
+{
+  "version": "0.1.0",
+  "sounds": {
+    "eliminate": "assets/sounds/eliminate.wav",
+    "rewind": "assets/sounds/rewind.wav",
+    "win": "assets/sounds/win.wav",
+    "fail": "assets/sounds/fail.wav",
+    "invalid": "assets/sounds/invalid.wav",
+    "item": "assets/sounds/item.wav"
+  }
+}

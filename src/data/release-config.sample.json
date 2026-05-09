@@ -1,0 +1,15 @@
+{
+  "version": "0.1.0",
+  "ads": {
+    "rewardedAdUnitId": "",
+    "interstitialAdUnitId": "",
+    "bannerAdUnitId": "",
+    "interstitialEveryLevels": 5,
+    "cooldownMs": 30000,
+    "interstitialCooldownMs": 90000
+  },
+  "cloud": {
+    "dailyChallengeFunction": "dailyChallenge",
+    "leaderboardFunction": "leaderboard"
+  }
+}

@@ -96,6 +96,8 @@ class ResultPanel {
       reason: 'noMoves',
       ...result
     };
+    this.result.themeLabel = this.result.themeLabel || this.result.themeName || '';
+    this.result.themeVariant = this.result.themeVariant || this.result.theme || '';
     this.result.stars = typeof result.stars === 'number'
       ? result.stars
       : this.calculateStars(this.result.moves, this.result.minimumSteps, this.mode);
@@ -146,12 +148,12 @@ class ResultPanel {
     const panelHeight = this.mode === 'win' ? 360 : 384;
     const panelX = (this.width - panelWidth) / 2;
     const panelY = Math.max(74, (this.height - panelHeight) / 2);
-    const themeKey = String(this.result.theme || this.result.themeName || '').toLowerCase();
-    const starTheme = themeKey.includes('star');
+    const themeKey = String(this.result.themeLabel || this.result.themeName || this.result.theme || '').toLowerCase();
+    const starTheme = themeKey.includes('starlight') || themeKey.includes('star');
     const oceanTheme = themeKey.includes('ocean') || themeKey.includes('sea') || themeKey.includes('ripple');
     const glowColor = starTheme
-      ? this.colors.starThemeGlow
-      : (oceanTheme ? this.colors.oceanThemeGlow : (this.mode === 'win' ? this.colors.winGlow : this.colors.failGlow));
+      ? (this.colors.starThemeGlow || 'rgba(216,180,254,0.14)')
+      : (oceanTheme ? (this.colors.oceanThemeGlow || 'rgba(103,232,249,0.14)') : (this.mode === 'win' ? this.colors.winGlow : this.colors.failGlow));
 
     ctx.save();
     ctx.fillStyle = this.colors.mask;

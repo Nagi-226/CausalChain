@@ -93,6 +93,47 @@ versions:
       - Configure real WeChat rewarded/interstitial/banner ad unit IDs before v0.1.0 release validation
       - Deploy wx.cloud dailyChallenge function and verify production database permissions before v0.1.0 release validation
       - Run device validation for ad pacing and reward UX during v0.1.0 release validation
+  v0.0.9:
+    status: in_progress_local_validated
+    modules:
+      star_ocean_theme_tokens: done_by_codex
+      themed_background_and_board_polish: done_by_codex
+      reduced_motion_rewind_skip: done_by_codex
+      low_end_30_fps_profile: done_by_codex
+      result_and_daily_ui_theme_feedback: done_by_codex
+      validation_tests: done_by_codex
+    verified:
+      unit_tests: pass_node_tests_unit_core_test_mjs
+      bootstrap_smoke: pass_node_smoke_test_js
+      end_to_end_smoke: pass_node_smoke_test2_js
+    pending_validation:
+      - WeChat DevTools visual pass for star/ocean theme separation on 375/390/414/428 widths
+      - Real low-end Android device validation for 30 FPS pacing and reduced-motion readability
+  v0.1.0:
+    status: in_progress_gameplay_release_hardening
+    modules:
+      level_move_budget_enforcement: done_by_codex
+      daily_challenge_best_result_upsert: done_by_codex
+      sound_effect_manager_and_assets: done_by_codex
+      release_ad_cloud_config_template: done_by_codex
+      validation_tests: done_by_codex
+    verified:
+      unit_tests: pass_node_tests_unit_core_test_mjs
+      bootstrap_smoke: pass_node_smoke_test_js
+      end_to_end_smoke: pass_node_smoke_test2_js
+    coordination:
+      ui_visual_polish_owner: cursor_gemini_3_1_pro
+      codex_focus: gameplay_systems_cloud_tests_release_hardening
+      avoid_touching:
+        - UI美观优化规划.md
+        - src/ui/
+        - src/render/
+        - assets/themes/
+    pending_validation:
+      - Full 40-level release candidate playthrough in WeChat DevTools
+      - Real WeChat ad unit IDs configured and verified
+      - Cloud functions deployed and database permissions verified
+      - Release QA sign-off and device performance evidence
 integration_contracts:
   ui_api: update_draw_handleTap
   item_effects:

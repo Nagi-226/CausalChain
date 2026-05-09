@@ -33,9 +33,9 @@ async function submitResult(event) {
 
   if (!cloud || typeof cloud.database !== 'function') {
     MEMORY_RESULTS[dateKey] = MEMORY_RESULTS[dateKey] || [];
-    MEMORY_RESULTS[dateKey].push(row);
+    upsertMemoryResult(MEMORY_RESULTS[dateKey], row);
     const rows = rankRows(MEMORY_RESULTS[dateKey]);
-    return { ok: true, mock: true, rank: rows.find((item) => item.updatedAt === row.updatedAt).rank, rows };
+    return { ok: true, mock: true, rank: findRank(rows, row), rows };
   }
 
   const db = cloud.database();
@@ -118,6 +118,17 @@ function isBetter(next, previous) {
   if (next.moves === previous.moves && next.stars === (previous.stars || 0) &&
     next.elapsedMs && next.elapsedMs < (previous.elapsedMs || Infinity)) return true;
   return false;
+}
+
+function upsertMemoryResult(rows, row) {
+  const index = rows.findIndex((item) => item.openid === row.openid);
+  if (index < 0) {
+    rows.push(row);
+    return;
+  }
+  if (isBetter(row, rows[index])) {
+    rows[index] = row;
+  }
 }
 
 function rankRows(rows = []) {

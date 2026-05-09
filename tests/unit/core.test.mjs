@@ -15,11 +15,14 @@ const LeaderboardManager = require('../../src/social/LeaderboardManager.js');
 const DailyChallenge = require('../../src/social/DailyChallenge.js');
 const AdManager = require('../../src/monetization/AdManager.js');
 const ItemManager = require('../../src/monetization/ItemManager.js');
+const SoundManager = require('../../src/audio/SoundManager.js');
 const openDataContext = require('../../open-data-context/index.js');
 const dailyChallengeCloud = require('../../cloud/functions/dailyChallenge/index.js');
 const { bootstrap, resolvePerformanceProfile } = require('../../game.js');
 const levels = require('../../src/data/levels.json');
 const themes = require('../../assets/themes/themes.json');
+const audio = require('../../src/data/audio.json');
+const releaseConfig = require('../../src/data/release-config.sample.json');
 
 const makeEmptyBoard = () => Array.from({ length: 6 }, () => Array(8).fill(null));
 
@@ -136,6 +139,22 @@ const placePair = (board, from, to, color = 'crimson', icon = 'spark') => {
   mismatchBoard[0][1].pairKey = 'azure:leaf';
   const mismatchEngine = new CausalEngine({ board: mismatchBoard, seed: 'mismatch' });
   assert.equal(mismatchEngine.canMatch({ row: 0, col: 0 }, { row: 0, col: 1 }).reason, 'pair_mismatch');
+}
+
+{
+  const board = makeEmptyBoard();
+  placePair(board, { row: 0, col: 0 }, { row: 0, col: 1 }, 'azure', 'moon');
+  placePair(board, { row: 1, col: 0 }, { row: 1, col: 1 }, 'gold', 'leaf');
+  const engine = new CausalEngine({ board, seed: 'move-budget', goals: { clearAll: true, moveBudget: 1 } });
+  const first = engine.processMove({ row: 0, col: 0 }, { row: 0, col: 1 });
+  assert.equal(first.success, true);
+  assert.equal(first.status, 'lost');
+  assert.equal(first.reason, 'moveBudget');
+  assert.equal(engine.getFailReason(), 'moveBudget');
+  assert.equal(engine.getStateSnapshot().remainingMoves, 0);
+  const blocked = engine.processMove({ row: 1, col: 0 }, { row: 1, col: 1 });
+  assert.equal(blocked.success, false);
+  assert.equal(blocked.reason, 'game_over');
 }
 
 {
@@ -376,6 +395,47 @@ const placePair = (board, from, to, color = 'crimson', icon = 'spark') => {
 }
 
 {
+  const calls = [];
+  const wxMock = {
+    createInnerAudioContext() {
+      return {
+        src: '',
+        volume: 1,
+        play() { calls.push({ type: 'play', src: this.src, volume: this.volume }); },
+        stop() { calls.push({ type: 'stop', src: this.src }); },
+        onError() {}
+      };
+    }
+  };
+  const sounds = new SoundManager({ wxApi: wxMock, manifest: audio.sounds, volume: 0.5 });
+  const played = sounds.play('eliminate');
+  assert.equal(played.success, true);
+  assert.ok(calls.some((item) => item.type === 'play' && item.src.includes('eliminate')));
+  sounds.setEnabled(false);
+  const skipped = sounds.play('win');
+  assert.equal(skipped.success, false);
+  assert.equal(skipped.reason, 'disabled');
+  assert.equal(sounds.getStats().eliminate.success, 1);
+}
+
+{
+  const created = [];
+  const wxMock = {
+    createRewardedVideoAd(options) {
+      created.push(options.adUnitId);
+      return { onError() {} };
+    }
+  };
+  const adManager = new AdManager({
+    wxApi: wxMock,
+    mock: false,
+    config: { ...releaseConfig.ads, rewardedAdUnitId: 'release-rewarded-id' }
+  });
+  assert.equal(adManager.config.interstitialEveryLevels, 5);
+  assert.deepEqual(created, ['release-rewarded-id']);
+}
+
+{
   let rewardedCloseHandler = null;
   const created = [];
   const wxMock = {
@@ -455,10 +515,17 @@ const placePair = (board, from, to, color = 'crimson', icon = 'spark') => {
   const challenge = await daily.getTodayChallenge(new Date('2026-05-08T00:00:00Z'));
   assert.equal(challenge.isDailyChallenge, true);
   assert.ok(challenge.seed.includes('2026-05-08'));
-  const submit = await daily.submitResult({ dateKey: '2026-05-08', moves: 11, stars: 3, elapsedMs: 6000 });
+  const submit = await daily.submitResult({ dateKey: '2026-05-08', playerId: 'tester-a', moves: 11, stars: 3, elapsedMs: 6000 });
   assert.equal(submit.ok, true);
+  await daily.submitResult({ dateKey: '2026-05-08', playerId: 'tester-a', moves: 14, stars: 3, elapsedMs: 5000 });
   const rows = await daily.getNationalLeaderboard('2026-05-08');
   assert.equal(rows[0].rank, 1);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].moves, 11);
+  await daily.submitResult({ dateKey: '2026-05-08', playerId: 'tester-a', moves: 9, stars: 3, elapsedMs: 7000 });
+  const improvedRows = await daily.getNationalLeaderboard('2026-05-08');
+  assert.equal(improvedRows.length, 1);
+  assert.equal(improvedRows[0].moves, 9);
   const items = new ItemManager({ inventory: { freeze: 0, reveal: 0, undo: 0, shuffle: 0 } });
   const reward = daily.claimReward(items, '2026-05-08');
   assert.equal(reward.success, true);
@@ -481,6 +548,27 @@ const placePair = (board, from, to, color = 'crimson', icon = 'spark') => {
   });
   assert.equal(submit.ok, true);
   assert.equal(submit.rank, 1);
+  const worseSubmit = await dailyChallengeCloud.main({
+    action: 'submitResult',
+    dateKey: '2026-05-08-cloud-test',
+    openid: 'tester-a',
+    moves: 12,
+    stars: 3,
+    elapsedMs: 4000
+  });
+  assert.equal(worseSubmit.rank, 1);
+  assert.equal(worseSubmit.rows.length, 1);
+  assert.equal(worseSubmit.rows[0].moves, 9);
+  const betterSubmit = await dailyChallengeCloud.main({
+    action: 'submitResult',
+    dateKey: '2026-05-08-cloud-test',
+    openid: 'tester-a',
+    moves: 8,
+    stars: 3,
+    elapsedMs: 7000
+  });
+  assert.equal(betterSubmit.rows.length, 1);
+  assert.equal(betterSubmit.rows[0].moves, 8);
   const leaderboard = await dailyChallengeCloud.main({
     action: 'getNationalLeaderboard',
     dateKey: '2026-05-08-cloud-test'

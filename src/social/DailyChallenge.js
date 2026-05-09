@@ -58,6 +58,8 @@ class DailyChallenge {
     const dateKey = result.dateKey || this.getDateKey();
     const record = {
       dateKey,
+      playerId: result.playerId || result.openid || 'local-player',
+      nickname: result.nickname || 'You',
       moves: Number(result.moves || 0),
       stars: Number(result.stars || 0),
       elapsedMs: Number(result.elapsedMs || 0),
@@ -95,10 +97,17 @@ class DailyChallenge {
   saveLocalResult(record) {
     this.cache.results = this.cache.results || {};
     const rows = this.cache.results[record.dateKey] || [];
-    rows.push({ ...record, updatedAt: Date.now(), nickname: 'You' });
+    const next = { ...record, updatedAt: Date.now() };
+    const playerKey = getPlayerKey(next);
+    const existingIndex = rows.findIndex((item) => getPlayerKey(item) === playerKey);
+    if (existingIndex < 0) {
+      rows.push(next);
+    } else if (isBetterRecord(next, rows[existingIndex])) {
+      rows[existingIndex] = next;
+    }
     this.cache.results[record.dateKey] = rankRows(rows).slice(0, 50);
     this.saveLocal();
-    const row = this.cache.results[record.dateKey].find((item) => item.updatedAt === rows[rows.length - 1].updatedAt);
+    const row = this.cache.results[record.dateKey].find((item) => getPlayerKey(item) === playerKey);
     return row ? row.rank : this.cache.results[record.dateKey].length;
   }
 
@@ -139,6 +148,19 @@ function rankRows(rows = []) {
   return rows.slice()
     .sort((a, b) => a.moves - b.moves || b.stars - a.stars || a.elapsedMs - b.elapsedMs)
     .map((row, index) => ({ ...row, rank: index + 1 }));
+}
+
+function getPlayerKey(row = {}) {
+  return row.playerId || row.openid || row.nickname || 'local-player';
+}
+
+function isBetterRecord(next, previous) {
+  if (!previous || !previous.moves) return true;
+  if (next.moves && next.moves < previous.moves) return true;
+  if (next.moves === previous.moves && next.stars > (previous.stars || 0)) return true;
+  if (next.moves === previous.moves && next.stars === (previous.stars || 0) &&
+    next.elapsedMs && next.elapsedMs < (previous.elapsedMs || Infinity)) return true;
+  return false;
 }
 
 function getStorage(wxApi) {

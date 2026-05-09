@@ -5,16 +5,20 @@
 | Check | Result |
 |-------|--------|
 | 40 levels solvable (20 boards each) | 40/40 PASS |
-| Package size (< 1.5 MB) | 0.25 MB PASS |
+| Package size (< 1.5 MB) | 0.41 MB PASS |
 | 100 consecutive levels no crash | PASS |
 | Syntax check all .js/.mjs | PASS |
 | core.test.mjs | PASS |
 | _smoke_test.js | PASS |
 | _smoke_test2.js | PASS |
+| Move budget gameplay rule wired | PASS |
+| Daily challenge keeps best result per player | PASS |
+| Sound manager + local effect assets | PASS |
+| Release config template for ad/cloud IDs | PASS |
 
 ## Pre-Release (requires WeChat DevTools / real device)
 
-- [ ] Replace placeholder ad-unit IDs in AdManager.js with real WeChat ad IDs
+- [ ] Create `src/data/release-config.local.json` from `src/data/release-config.sample.json` with real WeChat ad IDs
 - [ ] Deploy cloud/functions/dailyChallenge to WeChat Cloud Development
 - [ ] Deploy cloud/functions/leaderboard to WeChat Cloud Development
 - [ ] Real device test: iOS WeChat 8.0+

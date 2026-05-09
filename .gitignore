@@ -1,5 +1,6 @@
 # Local settings (may contain tokens/personal paths)
 .claude/settings.local.json
+src/data/release-config.local.json
 
 # Session state (ephemeral, gitignored per project spec)
 production/session-state/
