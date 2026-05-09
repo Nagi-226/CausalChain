@@ -271,6 +271,25 @@ class AdManager {
   hideBanner() {
     if (this.bannerAd && this.bannerAd.hide) this.bannerAd.hide();
   }
+
+  destroy() {
+    try { this.hideBanner(); } catch (e) { /* best-effort */ }
+    if (this.rewardedAd) {
+      try { if (typeof this.rewardedAd.offError === 'function') this.rewardedAd.offError(); } catch (e) { /* ignore */ }
+      try { if (typeof this.rewardedAd.offClose === 'function') this.rewardedAd.offClose(); } catch (e) { /* ignore */ }
+      try { if (typeof this.rewardedAd.destroy === 'function') this.rewardedAd.destroy(); } catch (e) { /* ignore */ }
+      this.rewardedAd = null;
+    }
+    if (this.interstitialAd) {
+      try { if (typeof this.interstitialAd.destroy === 'function') this.interstitialAd.destroy(); } catch (e) { /* ignore */ }
+      this.interstitialAd = null;
+    }
+    if (this.bannerAd) {
+      try { if (typeof this.bannerAd.destroy === 'function') this.bannerAd.destroy(); } catch (e) { /* ignore */ }
+      this.bannerAd = null;
+    }
+    this.fillLog = [];
+  }
 }
 
 module.exports = AdManager;

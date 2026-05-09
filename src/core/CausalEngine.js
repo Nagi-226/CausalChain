@@ -418,7 +418,7 @@ class CausalEngine {
           const tile = this.getTile(neighbor);
           if (tile) {
             // paradox trigger: chance of extra rewind expansion
-            const relation = hasParadoxTrigger && Math.random() < paradoxProb ? 'paradox_expand' : (neighbor.relation || 'adjacent');
+            const relation = hasParadoxTrigger && this.rng.next() < paradoxProb ? 'paradox_expand' : (neighbor.relation || 'adjacent');
             layer.push({
               row: neighbor.row,
               col: neighbor.col,

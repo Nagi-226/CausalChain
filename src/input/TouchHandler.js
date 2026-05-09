@@ -208,11 +208,7 @@ class TouchHandler {
       try {
         return normalizeResult(method.call(this.engine, cause, effect), cause, effect);
       } catch (secondError) {
-        try {
-          return normalizeResult(method.call(this.engine, input.from, input.to), cause, effect);
-        } catch (thirdError) {
-          return { success: false, valid: false, causeTile: cause, effectTile: effect, error: thirdError };
-        }
+        return { success: false, valid: false, causeTile: cause, effectTile: effect, error: secondError };
       }
     }
   }

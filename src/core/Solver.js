@@ -129,8 +129,12 @@ class Solver {
         const key = CausalEngine.getPairKey(tile);
         if (!groups[key]) groups[key] = { causes: [], effects: [] };
         const entry = { row, col, tile };
-        if (tile.type === CausalEngine.TILE_TYPES.CAUSE) groups[key].causes.push(entry);
-        if (tile.type === CausalEngine.TILE_TYPES.EFFECT) groups[key].effects.push(entry);
+        if (tile.type === CausalEngine.TILE_TYPES.CAUSE || tile.type === CausalEngine.TILE_TYPES.PARADOX) {
+          groups[key].causes.push(entry);
+        }
+        if (tile.type === CausalEngine.TILE_TYPES.EFFECT || tile.type === CausalEngine.TILE_TYPES.PARADOX) {
+          groups[key].effects.push(entry);
+        }
       }
     }
     return groups;

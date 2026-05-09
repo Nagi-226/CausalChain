@@ -28,6 +28,7 @@ class BoardRenderer {
       rose: '#fb7185',
       slate: '#334155'
     };
+    this.colorblind = Boolean(options.colorblind);
     this.theme = {
       panel: 'rgba(15,23,42,0.58)',
       grid: 'rgba(2,6,23,0.34)',
@@ -39,6 +40,10 @@ class BoardRenderer {
       tileInner: 'rgba(255,255,255,0.16)',
       tileShadow: 'rgba(0,0,0,0.18)'
     };
+  }
+
+  setColorblind(enabled) {
+    this.colorblind = Boolean(enabled);
   }
 
   setTheme(theme) {
@@ -221,7 +226,7 @@ class BoardRenderer {
     const boardGlow = this.theme.boardGlow || (starLabel ? 'rgba(141,215,255,0.12)' : 'rgba(141,215,255,0.08)');
     const boardEdge = this.theme.boardEdge || (starLabel ? 'rgba(191,219,254,0.24)' : 'rgba(226,232,240,0.18)');
     const boardInner = this.theme.boardInner || (starLabel ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.03)');
-    const themeTag = starLabel ? 'STELLAR FIELD' : (oceanLabel ? 'RIPPLE SEA' : (this.currentThemeName || ''));
+    const themeTag = (this.theme && this.theme.name) ? this.theme.name.toUpperCase() : (this.currentThemeName || '');
 
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.28)';
@@ -406,11 +411,12 @@ class BoardRenderer {
     ctx.lineWidth = invalid ? 4 : 1.5;
     ctx.stroke();
 
+    const prevAlpha = ctx.globalAlpha;
     ctx.globalAlpha *= 0.18;
     ctx.fillStyle = this.theme.tileInner || '#ffffff';
     roundedRect(ctx, -half + 5, -half + 5, size - 10, Math.max(8, size * 0.22), r * 0.7);
     ctx.fill();
-    ctx.globalAlpha /= 0.18;
+    ctx.globalAlpha = prevAlpha;
   }
 
   drawTileIcon(ctx, size, tile) {

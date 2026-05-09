@@ -12,6 +12,7 @@ const Toolbar = safeRequire('./src/ui/Toolbar', NullWidget);
 const Tutorial = safeRequire('./src/ui/Tutorial', NullWidget);
 const MenuManager = safeRequire('./src/ui/MenuManager', NullWidget);
 const ResultPanel = safeRequire('./src/ui/ResultPanel', NullWidget);
+const SoundManager = safeRequire('./src/audio/SoundManager', null);
 const AdManager = safeRequire('./src/monetization/AdManager', null);
 const ItemManager = safeRequire('./src/monetization/ItemManager', null);
 const ShareManager = safeRequire('./src/social/ShareManager', null);
@@ -21,6 +22,9 @@ const LEVELS_DATA = safeJsonRequire('./src/data/levels.json', { levels: [] });
 const TUTORIALS_DATA = safeJsonRequire('./src/data/tutorials.json', { tutorials: {} });
 const STRINGS = safeJsonRequire('./src/data/strings.json', {});
 const THEME_DATA = safeJsonRequire('./assets/themes/themes.json', { themes: {} });
+const AUDIO_DATA = safeJsonRequire('./src/data/audio.json', { sounds: {} });
+const RELEASE_CONFIG = safeJsonRequire('./src/data/release-config.local.json', null) ||
+  safeJsonRequire('./src/data/release-config.sample.json', {});
 
 const BOARD_COLS = 8;
 const BOARD_ROWS = 6;
@@ -110,8 +114,8 @@ class FallbackBoardGenerator {
   constructor(options) {
     this.cols = (options && options.cols) || BOARD_COLS;
     this.rows = (options && options.rows) || BOARD_ROWS;
-    this.colors = ['red', 'blue', 'green'];
-    this.icons = ['spark', 'moon', 'seed'];
+    this.colors = (CoreCausalEngine && CoreCausalEngine.COLORS) || ['crimson', 'azure', 'gold'];
+    this.icons = (CoreCausalEngine && CoreCausalEngine.ICONS) || ['spark', 'leaf', 'moon'];
   }
 
   generate() {
@@ -157,6 +161,7 @@ class FallbackCausalEngine {
       level: 1,
       moves: 0,
       rewinds: 0,
+      moveBudget: Number((opts.goals && opts.goals.moveBudget) || opts.moveBudget || 0),
       status: 'playing',
       startedAt: now()
     };
@@ -210,6 +215,10 @@ class FallbackCausalEngine {
     };
     if (success.completed) {
       this.state.status = 'completed';
+    } else if (this.state.moveBudget > 0 && this.state.moves >= this.state.moveBudget) {
+      this.state.status = 'lost';
+      success.status = 'lost';
+      success.reason = 'moveBudget';
     }
     this.events.emit('move:success', success);
     if (success.completed) {
@@ -320,11 +329,25 @@ class CausalChainGame {
 
     this.board = this.createBoard();
     this.engine = this.createEngine(this.board);
-    this.adManager = AdManager ? new AdManager({ wxApi: this.wx, mock: !this.wx }) : null;
+    this.soundManager = SoundManager ? new SoundManager({
+      wxApi: this.wx,
+      enabled: this.settings.sound,
+      manifest: AUDIO_DATA.sounds || {}
+    }) : null;
+    this.adManager = AdManager ? new AdManager({
+      wxApi: this.wx,
+      mock: !this.wx,
+      config: (this.options.adConfig || (RELEASE_CONFIG && RELEASE_CONFIG.ads)) || {}
+    }) : null;
     this.itemManager = ItemManager ? new ItemManager({ adManager: this.adManager }) : null;
     this.shareManager = ShareManager ? new ShareManager({ wxApi: this.wx, appTitle: 'Causal Chain' }) : null;
     this.leaderboardManager = LeaderboardManager ? new LeaderboardManager({ wxApi: this.wx }) : null;
-    this.dailyChallenge = DailyChallenge ? new DailyChallenge({ wxApi: this.wx }) : null;
+    this.dailyChallenge = DailyChallenge ? new DailyChallenge({
+      wxApi: this.wx,
+      cloudFunctionName: this.options.dailyChallengeFunction ||
+        (RELEASE_CONFIG && RELEASE_CONFIG.cloud && RELEASE_CONFIG.cloud.dailyChallengeFunction) ||
+        'dailyChallenge'
+    }) : null;
     if (this.itemManager && typeof this.itemManager.startLevel === 'function') {
       this.itemManager.startLevel(this.currentLevelId, { grants: this.currentLevel.rewards || null });
     }
@@ -336,7 +359,8 @@ class CausalChainGame {
       rows: BOARD_ROWS,
       animator: this.animator,
       effectRenderer: this.effects,
-      pathRenderer: this.pathRenderer
+      pathRenderer: this.pathRenderer,
+      colorblind: this.settings.colorblind
     });
     this.boardRenderer.setCanvasSize(this.width, this.height, this.dpr);
     this.boardRenderer.setTheme(this.currentTheme);
@@ -382,7 +406,12 @@ class CausalChainGame {
         return generated && generated.board ? generated.board : generated;
       }
     } catch (error) {
-      generator = new FallbackBoardGenerator({ cols: BOARD_COLS, rows: BOARD_ROWS });
+      generator = new FallbackBoardGenerator({
+        cols: BOARD_COLS,
+        rows: BOARD_ROWS,
+        difficulty: this.getLevelDifficultyConfig(),
+        seed: this.currentLevel.seed || `level-${this.currentLevelId}`
+      });
     }
     return generator.generate();
   }
@@ -390,9 +419,22 @@ class CausalChainGame {
   createEngine(board) {
     const Engine = CoreCausalEngine || FallbackCausalEngine;
     try {
-      return new Engine({ board, cols: BOARD_COLS, rows: BOARD_ROWS, level: this.currentLevelId, difficulty: this.getLevelDifficultyConfig() });
+      return new Engine({
+        board,
+        cols: BOARD_COLS,
+        rows: BOARD_ROWS,
+        level: this.currentLevelId,
+        difficulty: this.getLevelDifficultyConfig(),
+        goals: this.currentLevel.goals || null
+      });
     } catch (error) {
-      return new FallbackCausalEngine({ board, cols: BOARD_COLS, rows: BOARD_ROWS });
+      return new FallbackCausalEngine({
+        board,
+        cols: BOARD_COLS,
+        rows: BOARD_ROWS,
+        goals: this.currentLevel.goals || null,
+        moveBudget: (this.currentLevel.goals && this.currentLevel.goals.moveBudget) || 0
+      });
     }
   }
 
@@ -439,12 +481,15 @@ class CausalChainGame {
 
   handleMoveResult(result) {
     if (!result || !result.success) {
+      this.playSound('invalid');
       return;
     }
+    this.playSound('eliminate');
     this.pathRenderer.recordMove(result, this.boardRenderer);
     if (result.completed || result.status === 'won') {
       this.showLevelComplete(result);
     } else if (result.status === 'lost') {
+      this.playSound('fail');
       this.resultPanel.show('fail', this.buildResultState(result));
     }
   }
@@ -487,7 +532,9 @@ class CausalChainGame {
       canShareRevive: mode === 'fail' && this.canUseShareRevive(),
       shareReviveRemaining: this.getShareReviveRemaining(),
       theme: this.currentLevel.theme || this.currentTheme.id || this.currentTheme.name,
-      themeName: this.currentTheme.name
+      themeName: this.currentTheme.name,
+      themeLabel: this.currentTheme.name,
+      themeVariant: this.currentTheme.id
     };
   }
 
@@ -505,6 +552,7 @@ class CausalChainGame {
         this.menu.progress.stars[resultState.levelId]);
       resultState.shareTrigger = this.resolveCompletionShareTrigger(resultState, wasCleared, null);
       this.lastCompletedResult = resultState;
+      this.playSound('win');
       this.effects.playCelebration(this.boardRenderer.getBoardRect());
       if (this.menu && typeof this.menu.setLevelResult === 'function' && !this.currentLevel.isDailyChallenge) {
         this.menu.setLevelResult(resultState.levelId, resultState);
@@ -713,6 +761,9 @@ class CausalChainGame {
   useToolbarItem(itemId) {
     if (!this.itemManager || typeof this.itemManager.useItem !== 'function') return;
     this.itemManager.useItem(itemId, this, { allowAd: true }).then((result) => {
+      if (result && result.success) {
+        this.playSound('item');
+      }
       if (result && result.success && itemId === 'reveal') {
         this.pathRenderer.setPath(result.effect && result.effect.value ? result.effect.value : this.getCausalInsight());
       }
@@ -728,9 +779,22 @@ class CausalChainGame {
     if (this.effects && typeof this.effects.setReducedMotion === 'function') {
       this.effects.setReducedMotion(this.settings.lowMotion);
     }
+    if (this.soundManager && typeof this.soundManager.setEnabled === 'function') {
+      this.soundManager.setEnabled(this.settings.sound);
+    }
+    if (this.boardRenderer && typeof this.boardRenderer.setColorblind === 'function') {
+      this.boardRenderer.setColorblind(this.settings.colorblind);
+    }
     if (this.currentTheme) {
       this.currentTheme.lowMotion = this.settings.lowMotion;
     }
+  }
+
+  playSound(name, options) {
+    if (!this.soundManager || typeof this.soundManager.play !== 'function') {
+      return { success: false, sound: name, reason: 'missingSoundManager' };
+    }
+    return this.soundManager.play(name, options);
   }
 
   shouldSkipRewindAnimation() {
@@ -754,6 +818,7 @@ class CausalChainGame {
     if (this.engine && typeof this.engine.undo === 'function') {
       const result = this.engine.undo();
       if (!result || result.success !== false) {
+        this.playSound('rewind');
         callWidget(this.resultPanel, 'hide');
       }
       return result;
