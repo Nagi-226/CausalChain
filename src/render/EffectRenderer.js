@@ -4,7 +4,21 @@ class EffectRenderer {
     this.particles = [];
     this.ripples = [];
     this.celebrations = [];
-    this.maxParticles = opts.maxParticles || 180;
+    this.baseMaxParticles = opts.maxParticles || 180;
+    this.reducedMotion = Boolean(opts.reducedMotion);
+    this.maxParticles = this.reducedMotion ? Math.min(72, this.baseMaxParticles) : this.baseMaxParticles;
+  }
+
+  setReducedMotion(value) {
+    this.reducedMotion = Boolean(value);
+    this.maxParticles = this.reducedMotion ? Math.min(72, this.baseMaxParticles) : this.baseMaxParticles;
+    if (this.particles.length > this.maxParticles) {
+      this.particles.splice(0, this.particles.length - this.maxParticles);
+    }
+    if (this.reducedMotion) {
+      this.ripples = [];
+      this.celebrations = [];
+    }
   }
 
   update(dt, time) {
@@ -37,7 +51,7 @@ class EffectRenderer {
 
   burstParticles(x, y, color, count, options) {
     const opts = options || {};
-    const total = count || 18;
+    const total = this.reducedMotion ? Math.max(4, Math.floor((count || 18) * 0.45)) : (count || 18);
     const now = defaultNow();
     for (let i = 0; i < total; i += 1) {
       const angle = (Math.PI * 2 * i) / total + randomRange(-0.22, 0.22);
@@ -62,6 +76,9 @@ class EffectRenderer {
 
   addRipple(x, y, color, options) {
     const opts = options || {};
+    if (this.reducedMotion) {
+      return;
+    }
     this.ripples.push({
       x,
       y,
@@ -76,6 +93,9 @@ class EffectRenderer {
   playCelebration(rect, options) {
     const opts = options || {};
     const now = defaultNow();
+    if (this.reducedMotion) {
+      return;
+    }
     this.celebrations.push({
       rect: rect || { x: 0, y: 0, width: 375, height: 667 },
       start: now,

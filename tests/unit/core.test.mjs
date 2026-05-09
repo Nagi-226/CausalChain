@@ -17,7 +17,7 @@ const AdManager = require('../../src/monetization/AdManager.js');
 const ItemManager = require('../../src/monetization/ItemManager.js');
 const openDataContext = require('../../open-data-context/index.js');
 const dailyChallengeCloud = require('../../cloud/functions/dailyChallenge/index.js');
-const { bootstrap } = require('../../game.js');
+const { bootstrap, resolvePerformanceProfile } = require('../../game.js');
 const levels = require('../../src/data/levels.json');
 const themes = require('../../assets/themes/themes.json');
 
@@ -332,6 +332,23 @@ const placePair = (board, from, to, color = 'crimson', icon = 'spark') => {
   assert.equal(game.getShareReviveRemaining(), 1);
   game.markShareReviveUsed();
   assert.equal(game.canUseShareRevive(), false);
+  game.stop();
+}
+
+{
+  const lowMemoryProfile = resolvePerformanceProfile({
+    getSystemInfoSync() {
+      return { memorySize: 2048, benchmarkLevel: 12 };
+    }
+  }, {});
+  assert.equal(lowMemoryProfile.lowEnd, true);
+  assert.equal(lowMemoryProfile.targetFPS, 30);
+
+  const game = bootstrap({ autoStart: false, width: 375, height: 667, lowEnd: true });
+  assert.equal(game.targetFPS, 30);
+  assert.equal(game.shouldSkipRewindAnimation(), true);
+  game.applySettings({ lowMotion: false });
+  assert.equal(game.shouldSkipRewindAnimation(), false);
   game.stop();
 }
 

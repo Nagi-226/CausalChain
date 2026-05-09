@@ -6,6 +6,14 @@ class TileAnimator {
     this.drag = null;
     this.waves = [];
     this.timeline = [];
+    this.reducedMotion = Boolean(opts.reducedMotion);
+  }
+
+  setReducedMotion(value) {
+    this.reducedMotion = Boolean(value);
+    if (this.reducedMotion) {
+      this.waves = [];
+    }
   }
 
   update(time) {
@@ -69,7 +77,7 @@ class TileAnimator {
         type: 'eliminate',
         tileId: getTileId(list[i]),
         start,
-        duration: opts.duration || 400,
+        duration: opts.duration || (this.reducedMotion ? 220 : 400),
         origin: origin || null
       });
     }
@@ -81,7 +89,7 @@ class TileAnimator {
       type: 'bounce',
       tileId: getTileId(tile),
       start: this.clock(),
-      duration: opts.duration || 300,
+      duration: opts.duration || (this.reducedMotion ? 180 : 300),
       from: from || { x: 0, y: 0 },
       to: to || { x: 0, y: 0 }
     });
@@ -95,7 +103,7 @@ class TileAnimator {
         type: 'invalid',
         tileId: getTileId(tile),
         start,
-        duration: opts.duration || 260,
+        duration: opts.duration || (this.reducedMotion ? 180 : 260),
         target
       });
     }
@@ -104,13 +112,17 @@ class TileAnimator {
         type: 'invalid',
         tileId: getTileId(target),
         start,
-        duration: opts.duration || 260,
+        duration: opts.duration || (this.reducedMotion ? 180 : 260),
         target
       });
     }
   }
 
   playBacktrackWave(layers, origin, options) {
+    if (this.reducedMotion || (options && options.skip)) {
+      this.timeline = [];
+      return [];
+    }
     const timeline = this.createBacktrackTimeline(layers, options);
     const start = this.clock();
     for (let i = 0; i < timeline.length; i += 1) {

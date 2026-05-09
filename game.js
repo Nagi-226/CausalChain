@@ -300,9 +300,18 @@ class CausalChainGame {
     this.running = false;
     this.lastFrame = 0;
     this.rafId = 0;
+    this.performanceProfile = resolvePerformanceProfile(this.wx, this.options);
+    this.targetFPS = this.options.targetFPS || this.performanceProfile.targetFPS;
+    this.frameIntervalMs = 1000 / this.targetFPS;
+    this.settings = {
+      sound: true,
+      lowMotion: Boolean(this.options.lowMotion || this.performanceProfile.lowEnd),
+      colorblind: false
+    };
     this.currentLevelId = this.options.levelId || 1;
     this.currentLevel = getLevelDefinition(this.currentLevelId);
     this.currentTheme = getThemeDefinition(this.currentLevel.theme);
+    this.currentTheme.lowMotion = this.settings.lowMotion;
     this.startedAt = now();
     this.levelCompleted = false;
     this.lastCompletedResult = null;
@@ -319,8 +328,8 @@ class CausalChainGame {
     if (this.itemManager && typeof this.itemManager.startLevel === 'function') {
       this.itemManager.startLevel(this.currentLevelId, { grants: this.currentLevel.rewards || null });
     }
-    this.animator = new TileAnimator({ clock: now });
-    this.effects = new EffectRenderer();
+    this.animator = new TileAnimator({ clock: now, reducedMotion: this.settings.lowMotion });
+    this.effects = new EffectRenderer({ reducedMotion: this.settings.lowMotion });
     this.pathRenderer = new CausalPathRenderer();
     this.boardRenderer = new BoardRenderer(this.ctx, {
       cols: BOARD_COLS,
@@ -336,14 +345,15 @@ class CausalChainGame {
     this.hud = new HUD({ game: this, engine: this.engine, strings: STRINGS, width: this.width, height: this.height });
     this.toolbar = new Toolbar({ game: this, engine: this.engine, strings: STRINGS, width: this.width, height: this.height });
     this.tutorial = new Tutorial({ game: this, engine: this.engine, strings: STRINGS, tutorials: TUTORIALS_DATA, width: this.width, height: this.height });
-    this.menu = new MenuManager({ game: this, engine: this.engine, strings: STRINGS, levels: LEVELS_DATA.levels || [], width: this.width, height: this.height });
+    this.menu = new MenuManager({ game: this, engine: this.engine, strings: STRINGS, levels: LEVELS_DATA.levels || [], width: this.width, height: this.height, settings: this.settings });
     this.resultPanel = new ResultPanel({ game: this, engine: this.engine, strings: STRINGS, width: this.width, height: this.height });
     this.layoutWidgets();
 
     this.touch = new TouchHandler(this.canvas, this.boardRenderer, this.engine, this.animator, this.effects, {
       onMoveResult: (result) => this.handleMoveResult(result),
       onDragChange: (drag) => this.boardRenderer.setDragState(drag),
-      onTap: (point) => this.handleTap(point.x, point.y)
+      onTap: (point) => this.handleTap(point.x, point.y),
+      shouldSkipBacktrackAnimation: () => this.shouldSkipRewindAnimation()
     });
 
     this.bindEngineEvents();
@@ -475,7 +485,9 @@ class CausalChainGame {
       stars,
       reason: result && result.reason ? result.reason : 'noMoves',
       canShareRevive: mode === 'fail' && this.canUseShareRevive(),
-      shareReviveRemaining: this.getShareReviveRemaining()
+      shareReviveRemaining: this.getShareReviveRemaining(),
+      theme: this.currentLevel.theme || this.currentTheme.id || this.currentTheme.name,
+      themeName: this.currentTheme.name
     };
   }
 
@@ -565,6 +577,7 @@ class CausalChainGame {
   handleCommand(command) {
     if (!command) return;
     if (command.type === 'menu.action') {
+      if (command.settings) this.applySettings(command.settings);
       if (command.action === 'start' || command.action === 'resume') this.menu.hide();
       if (command.action === 'restart') this.restartLevel();
       if (command.action === 'leaderboard') this.showLeaderboard();
@@ -706,6 +719,24 @@ class CausalChainGame {
     });
   }
 
+  applySettings(settings) {
+    this.settings = { ...this.settings, ...(settings || {}) };
+    callWidget(this.menu, 'update', { settings: this.settings });
+    if (this.animator && typeof this.animator.setReducedMotion === 'function') {
+      this.animator.setReducedMotion(this.settings.lowMotion);
+    }
+    if (this.effects && typeof this.effects.setReducedMotion === 'function') {
+      this.effects.setReducedMotion(this.settings.lowMotion);
+    }
+    if (this.currentTheme) {
+      this.currentTheme.lowMotion = this.settings.lowMotion;
+    }
+  }
+
+  shouldSkipRewindAnimation() {
+    return Boolean(this.settings && this.settings.lowMotion);
+  }
+
   freezeBacktrack() {
     if (this.engine && typeof this.engine.freezeNextRewind === 'function') return this.engine.freezeNextRewind();
     return false;
@@ -795,6 +826,7 @@ class CausalChainGame {
     this.currentLevel = levelDefinition;
     this.currentLevelId = levelDefinition.id || levelDefinition.levelId || this.currentLevelId;
     this.currentTheme = getThemeDefinition(this.currentLevel.theme);
+    this.currentTheme.lowMotion = this.settings.lowMotion;
     this.startedAt = now();
     this.levelCompleted = false;
     this.lastCompletedResult = null;
@@ -844,6 +876,10 @@ class CausalChainGame {
       return;
     }
     const current = time || now();
+    if (current - this.lastFrame < this.frameIntervalMs - 0.5) {
+      this.rafId = requestFrame((next) => this.loop(next));
+      return;
+    }
     const dt = Math.min(50, current - this.lastFrame || 16.67);
     this.lastFrame = current;
     this.update(dt, current);
@@ -914,10 +950,15 @@ function getLevelDefinition(levelId) {
 
 function getThemeDefinition(themeId) {
   const themes = THEME_DATA.themes || {};
-  return themes[themeId] || themes.star || {
+  const theme = themes[themeId] || themes.star || {
     background: ['#111827', '#172554', '#0f172a'],
     panel: 'rgba(15,23,42,0.58)',
     grid: 'rgba(2,6,23,0.34)'
+  };
+  return {
+    ...theme,
+    id: themeId || theme.id || 'star',
+    name: theme.name || themeId || 'Starlight'
   };
 }
 
@@ -1009,6 +1050,34 @@ function getDevicePixelRatio(wxApi) {
   }
 }
 
+function resolvePerformanceProfile(wxApi, options) {
+  const opts = options || {};
+  if (opts.lowEnd || opts.lowPerformanceMode) {
+    return { lowEnd: true, targetFPS: 30, reason: 'option' };
+  }
+  if (opts.targetFPS) {
+    return { lowEnd: Number(opts.targetFPS) <= 30, targetFPS: Number(opts.targetFPS), reason: 'option' };
+  }
+  if (!wxApi || typeof wxApi.getSystemInfoSync !== 'function') {
+    return { lowEnd: false, targetFPS: 60, reason: 'default' };
+  }
+  try {
+    const info = wxApi.getSystemInfoSync() || {};
+    const benchmark = Number(info.benchmarkLevel || 0);
+    const memory = Number(info.memorySize || 0);
+    const lowBenchmark = benchmark > 0 && benchmark < 15;
+    const lowMemory = memory > 0 && memory <= 2048;
+    const lowEnd = Boolean(lowBenchmark || lowMemory);
+    return {
+      lowEnd,
+      targetFPS: lowEnd ? 30 : 60,
+      reason: lowEnd ? (lowMemory ? 'memory' : 'benchmark') : 'device'
+    };
+  } catch (error) {
+    return { lowEnd: false, targetFPS: 60, reason: 'fallback' };
+  }
+}
+
 function drawBackground(ctx, width, height, time, theme) {
   const stops = theme && Array.isArray(theme.background) ? theme.background : ['#111827', '#172554', '#0f172a'];
   const gradient = ctx.createLinearGradient ? ctx.createLinearGradient(0, 0, 0, height) : null;
@@ -1023,13 +1092,25 @@ function drawBackground(ctx, width, height, time, theme) {
   ctx.fillRect(0, 0, width, height);
 
   const t = (time || 0) * 0.001;
+  const themeKey = String((theme && (theme.id || theme.name)) || '').toLowerCase();
+  const starTheme = themeKey.includes('star') || themeKey.includes('starlight');
+  const oceanTheme = themeKey.includes('ocean') || themeKey.includes('sea') || themeKey.includes('ripple');
+  const reduced = Boolean(theme && theme.lowMotion);
+  const atmosphere = (theme && theme.atmosphere) || {};
+  const haloColor = atmosphere.halo || (starTheme ? 'rgba(216,180,254,0.24)' : 'rgba(141,215,255,0.22)');
+  const haloMid = atmosphere.haloMid || (starTheme ? 'rgba(125,211,252,0.10)' : 'rgba(141,215,255,0.08)');
+  const orbColor = atmosphere.orb || (starTheme ? 'rgba(196,181,253,0.18)' : (oceanTheme ? 'rgba(45,212,191,0.16)' : 'rgba(103,232,249,0.14)'));
+  const orbMid = atmosphere.orbMid || (starTheme ? 'rgba(125,211,252,0.06)' : (oceanTheme ? 'rgba(34,211,238,0.07)' : 'rgba(103,232,249,0.05)'));
+  const lineColor = atmosphere.line || (starTheme ? 'rgba(196,181,253,0.14)' : (oceanTheme ? 'rgba(125,211,252,0.13)' : 'rgba(255,255,255,0.16)'));
+  const particleColor = atmosphere.particle || (starTheme ? '#f5f3ff' : (oceanTheme ? '#ccfbf1' : '#f8fafc'));
+  const particleCount = reduced ? 8 : (atmosphere.particleCount || (oceanTheme ? 24 : 18));
 
   ctx.save();
-  ctx.globalAlpha = 0.16;
+  ctx.globalAlpha = starTheme ? 0.18 : 0.16;
   const halo = ctx.createRadialGradient ? ctx.createRadialGradient(width * 0.5, height * 0.22, 8, width * 0.5, height * 0.22, Math.max(width, height) * 0.7) : null;
   if (halo && halo.addColorStop) {
-    halo.addColorStop(0, 'rgba(141,215,255,0.22)');
-    halo.addColorStop(0.55, 'rgba(141,215,255,0.08)');
+    halo.addColorStop(0, haloColor);
+    halo.addColorStop(0.55, haloMid);
     halo.addColorStop(1, 'rgba(141,215,255,0)');
     ctx.fillStyle = halo;
     ctx.fillRect(0, 0, width, height);
@@ -1037,16 +1118,16 @@ function drawBackground(ctx, width, height, time, theme) {
   ctx.restore();
 
   ctx.save();
-  ctx.globalAlpha = 0.08;
-  ctx.fillStyle = '#67e8f9';
+  ctx.globalAlpha = starTheme ? 0.10 : 0.08;
+  ctx.fillStyle = starTheme ? '#c4b5fd' : (oceanTheme ? '#67e8f9' : '#67e8f9');
   for (let i = 0; i < 3; i += 1) {
     const x = width * (0.18 + i * 0.31) + Math.sin(t * 0.6 + i) * 18;
     const y = height * (0.24 + i * 0.19) + Math.cos(t * 0.4 + i) * 12;
     const radius = Math.max(width, height) * (0.14 + i * 0.03);
     const glow = ctx.createRadialGradient ? ctx.createRadialGradient(x, y, 10, x, y, radius) : null;
     if (glow && glow.addColorStop) {
-      glow.addColorStop(0, 'rgba(103,232,249,0.14)');
-      glow.addColorStop(0.7, 'rgba(103,232,249,0.05)');
+      glow.addColorStop(0, orbColor);
+      glow.addColorStop(0.7, orbMid);
       glow.addColorStop(1, 'rgba(103,232,249,0)');
       ctx.fillStyle = glow;
       ctx.beginPath();
@@ -1057,8 +1138,8 @@ function drawBackground(ctx, width, height, time, theme) {
   ctx.restore();
 
   ctx.save();
-  ctx.globalAlpha = 0.08;
-  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.globalAlpha = reduced ? 0.04 : (starTheme ? 0.10 : 0.08);
+  ctx.strokeStyle = lineColor;
   ctx.lineWidth = 1;
   const spacing = 48;
   for (let row = -1; row < Math.ceil(height / spacing) + 1; row += 1) {
@@ -1071,13 +1152,13 @@ function drawBackground(ctx, width, height, time, theme) {
   ctx.restore();
 
   ctx.save();
-  ctx.globalAlpha = 0.14;
-  ctx.fillStyle = '#f8fafc';
-  for (let i = 0; i < 18; i += 1) {
-    const x = (i * 83 + Math.sin(t + i) * 16) % width;
-    const y = (i * 47 + Math.cos(t * 0.7 + i) * 10) % height;
+  ctx.globalAlpha = reduced ? 0.10 : (starTheme ? 0.18 : 0.14);
+  ctx.fillStyle = particleColor;
+  for (let i = 0; i < particleCount; i += 1) {
+    const x = (i * 83 + Math.sin(t + i) * (oceanTheme ? 9 : 16)) % width;
+    const y = (i * 47 + Math.cos(t * 0.7 + i) * (oceanTheme ? 18 : 10)) % height;
     ctx.beginPath();
-    ctx.arc(x, y, 1.1 + (i % 3) * 0.45, 0, Math.PI * 2);
+    ctx.arc(x, y, (oceanTheme ? 1.7 : 1.1) + (i % 3) * 0.45, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.restore();
@@ -1171,6 +1252,7 @@ const exported = {
   bootstrap,
   createMockCanvas,
   createMockContext,
+  resolvePerformanceProfile,
   FallbackCausalEngine,
   FallbackBoardGenerator
 };

@@ -9,6 +9,7 @@ class TouchHandler {
     this.onMoveResult = opts.onMoveResult || function noop() {};
     this.onDragChange = opts.onDragChange || function noop() {};
     this.onTap = opts.onTap || function noop() {};
+    this.shouldSkipBacktrackAnimation = opts.shouldSkipBacktrackAnimation || function noSkip() { return false; };
     this.active = false;
     this.drag = null;
     this.target = null;
@@ -223,7 +224,7 @@ class TouchHandler {
       if (this.animator && typeof this.animator.playEliminate === 'function') {
         this.animator.playEliminate(eliminated, center);
       }
-      if (this.animator && typeof this.animator.playBacktrackWave === 'function') {
+      if (!this.shouldSkipBacktrackAnimation() && this.animator && typeof this.animator.playBacktrackWave === 'function') {
         this.animator.playBacktrackWave(result.backtrackLayers || result.rippleLayers || [], center);
       }
       if (this.effects) {

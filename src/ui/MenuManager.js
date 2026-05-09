@@ -7,7 +7,9 @@ const DEFAULT_COLORS = {
   muted: '#A8B3CF',
   accent: '#8DD7FF',
   gold: '#FFD166',
-  locked: 'rgba(255, 255, 255, 0.05)'
+  locked: 'rgba(255, 255, 255, 0.05)',
+  success: 'rgba(45, 212, 191, 0.18)',
+  successBorder: 'rgba(45, 212, 191, 0.28)'
 };
 
 function readString(strings, key) {
@@ -46,7 +48,7 @@ class MenuManager {
     this.buttons = [];
     this.levelButtons = [];
     this.leaderboardState = options.leaderboardState || { rows: [] };
-    this.settings = { sound: true, lowMotion: false, colorblind: false };
+    this.settings = { sound: true, lowMotion: false, colorblind: false, ...(options.settings || {}) };
     this.progressKey = options.progressKey || 'ccgs.progress.v0';
     this.progress = options.progress || this.loadProgress();
   }
@@ -125,7 +127,20 @@ class MenuManager {
     gradient.addColorStop(1, this.colors.bgBottom);
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, this.width, this.height);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    const halo = ctx.createRadialGradient ? ctx.createRadialGradient(this.width * 0.5, this.height * 0.18, 8, this.width * 0.5, this.height * 0.18, Math.max(this.width, this.height) * 0.7) : null;
+    if (halo && halo.addColorStop) {
+      halo.addColorStop(0, 'rgba(196,181,253,0.22)');
+      halo.addColorStop(0.58, 'rgba(125,211,252,0.08)');
+      halo.addColorStop(1, 'rgba(141,215,255,0)');
+      ctx.fillStyle = halo;
+      ctx.fillRect(0, 0, this.width, this.height);
+    }
+    ctx.restore();
+    ctx.save();
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
     for (let i = 0; i < 18; i += 1) {
       const x = (i * 97) % this.width;
       const y = (i * 151) % this.height;
@@ -133,6 +148,7 @@ class MenuManager {
       ctx.arc(x, y, 1 + (i % 3), 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.restore();
   }
 
   createButton(action, labelKey, x, y, width, height, primary = false) {
@@ -173,27 +189,64 @@ class MenuManager {
     this.drawTitle(ctx, 'menu.subtitle');
     const w = Math.min(280, this.width - 56);
     const x = (this.width - w) / 2;
-    const cardY = 180;
-    roundRect(ctx, x, cardY, w, 320, 22);
+    const cardY = 170;
+    const cardH = Math.min(470, this.height - cardY - 22);
+    roundRect(ctx, x, cardY, w, cardH, 22);
     ctx.fillStyle = 'rgba(255,255,255,0.06)';
     ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,0.08)';
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    ctx.fillStyle = this.colors.muted;
-    ctx.font = '12px sans-serif';
+    const dailyDone = Boolean(this.progress.dailyChallenge && this.progress.dailyChallenge.claimed);
+    const dailyStateText = dailyDone ? 'menu.dailyChallengeRewardClaimed' : 'menu.dailyChallengeRewardReady';
+    const dailyStateColor = dailyDone ? this.colors.gold : this.colors.accent;
+    const dailyY = cardY + 18;
+    const leaderboardY = dailyY + 88;
+    const buttonY = leaderboardY + 60;
+
+    ctx.save();
+    roundRect(ctx, x + 18, dailyY, w - 36, 78, 18);
+    ctx.fillStyle = dailyDone ? this.colors.success : 'rgba(141,215,255,0.08)';
+    ctx.fill();
+    ctx.strokeStyle = dailyDone ? this.colors.successBorder : 'rgba(141,215,255,0.18)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = dailyStateColor;
+    ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(this.t('menu.dailyChallenge'), x + 18, cardY + 16);
-    ctx.fillText(this.t('menu.leaderboard'), x + 18, cardY + 170);
+    ctx.fillText(this.t('menu.dailyChallenge'), x + 32, dailyY + 12);
+    ctx.fillStyle = this.colors.text;
+    ctx.font = '12px sans-serif';
+    ctx.fillText(this.t(dailyStateText), x + 32, dailyY + 34);
+    ctx.fillStyle = this.colors.muted;
+    ctx.fillText(this.t('menu.dailyChallengeHint'), x + 32, dailyY + 55);
+    ctx.restore();
+
+    ctx.save();
+    roundRect(ctx, x + 18, leaderboardY, w - 36, 44, 16);
+    ctx.fillStyle = 'rgba(255,255,255,0.04)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = this.colors.gold;
+    ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(this.t('menu.leaderboard'), x + 32, leaderboardY + 8);
+    ctx.fillStyle = this.colors.muted;
+    ctx.font = '12px sans-serif';
+    ctx.fillText(this.t('menu.leaderboardSubtitle'), x + 32, leaderboardY + 26);
+    ctx.restore();
 
     this.buttons = [
-      this.createButton('start', 'menu.start', x + 18, 224, w - 36, 48, true),
-      this.createButton('levelSelect', 'menu.levelSelect', x + 18, 282, w - 36, 48),
-      this.createButton('dailyChallenge', 'menu.dailyChallenge', x + 18, 340, w - 36, 48),
-      this.createButton('leaderboard', 'menu.leaderboard', x + 18, 398, w - 36, 48),
-      this.createButton('settings', 'menu.settings', x + 18, 456, w - 36, 48)
+      this.createButton('start', 'menu.start', x + 18, buttonY, w - 36, 48, true),
+      this.createButton('levelSelect', 'menu.levelSelect', x + 18, buttonY + 58, w - 36, 48),
+      this.createButton('dailyChallenge', 'menu.dailyChallenge', x + 18, buttonY + 116, w - 36, 48),
+      this.createButton('leaderboard', 'menu.leaderboard', x + 18, buttonY + 174, w - 36, 48),
+      this.createButton('settings', 'menu.settings', x + 18, buttonY + 232, w - 36, 48)
     ];
     this.buttons.forEach((button) => this.drawButton(ctx, button));
   }
@@ -276,10 +329,23 @@ class MenuManager {
     this.drawTitle(ctx, 'menu.settings');
     const w = Math.min(290, this.width - 50);
     const x = (this.width - w) / 2;
+    roundRect(ctx, x - 6, 184, w + 12, 290, 22);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = this.colors.muted;
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(this.t('menu.settingsHint') || 'Tune the starry journey to your preference.', x + 12, 198);
+
     this.buttons = [
-      this.createButton('toggleSound', this.settings.sound ? 'settings.soundOn' : 'settings.soundOff', x, 210, w, 48),
-      this.createButton('toggleMotion', this.settings.lowMotion ? 'settings.motionLow' : 'settings.motionFull', x, 270, w, 48),
-      this.createButton('toggleColorblind', this.settings.colorblind ? 'settings.colorblindOn' : 'settings.colorblindOff', x, 330, w, 48),
+      this.createButton('toggleSound', this.settings.sound ? 'settings.soundOn' : 'settings.soundOff', x, 226, w, 48),
+      this.createButton('toggleMotion', this.settings.lowMotion ? 'settings.motionLow' : 'settings.motionFull', x, 286, w, 48),
+      this.createButton('toggleColorblind', this.settings.colorblind ? 'settings.colorblindOn' : 'settings.colorblindOff', x, 346, w, 48),
       this.createButton('back', 'menu.back', x, 410, w, 44, true)
     ];
     this.buttons.forEach((button) => this.drawButton(ctx, button));
@@ -293,6 +359,18 @@ class MenuManager {
     const size = Math.min(54, Math.floor((this.width - 44) / columns) - 8);
     const startX = (this.width - columns * size - (columns - 1) * 8) / 2;
     const startY = 176;
+    const panelW = this.width - 36;
+    roundRect(ctx, 18, 152, panelW, Math.max(300, Math.ceil(this.levels.slice(0, 20).length / columns) * (size + 12) + 52), 20);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = this.colors.muted;
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(this.t('menu.levelSelectHint') || 'Choose a level for the starry journey.', 34, 166);
     this.levelButtons = [];
     this.levels.slice(0, 20).forEach((level, index) => {
       const col = index % columns;

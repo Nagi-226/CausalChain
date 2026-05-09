@@ -44,6 +44,9 @@
     "start": "Start",
     "levelSelect": "Levels",
     "dailyChallenge": "Daily Challenge",
+    "dailyChallengeRewardReady": "Today seed ready",
+    "dailyChallengeRewardClaimed": "Reward claimed",
+    "dailyChallengeHint": "Clear once for item rewards.",
     "leaderboard": "Leaderboard",
     "leaderboardSubtitle": "Friend scores for this timeline.",
     "leaderboardLoading": "Loading WeChat friend scores...",
@@ -90,6 +93,10 @@
       "undo": "Rewind One Step",
       "restart": "Restart",
       "adRevive": "Watch Ad"
+    },
+    "ads": {
+      "rewardGranted": "Ad reward granted",
+      "unavailable": "Ad unavailable, retry later"
     }
   },
   "tutorial": {

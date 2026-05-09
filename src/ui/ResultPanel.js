@@ -12,7 +12,15 @@ const DEFAULT_COLORS = {
   winGlow: 'rgba(255, 209, 102, 0.16)',
   failGlow: 'rgba(239, 71, 111, 0.14)',
   reviveGlow: 'rgba(45, 212, 191, 0.14)',
-  reviveBanner: 'rgba(45, 212, 191, 0.10)'
+  reviveBanner: 'rgba(45, 212, 191, 0.10)',
+  adSuccessGlow: 'rgba(255, 209, 102, 0.14)',
+  adFailGlow: 'rgba(239, 71, 111, 0.12)',
+  starThemeGlow: 'rgba(196,181,253,0.16)',
+  starThemeBanner: 'rgba(125,211,252,0.10)',
+  starThemeStroke: 'rgba(196,181,253,0.22)',
+  oceanThemeGlow: 'rgba(45,212,191,0.14)',
+  oceanThemeBanner: 'rgba(20,184,166,0.10)',
+  oceanThemeStroke: 'rgba(103,232,249,0.22)'
 };
 
 function readString(strings, key) {
@@ -127,7 +135,7 @@ class ResultPanel {
     ctx.textBaseline = 'middle';
     for (let i = 0; i < 3; i += 1) {
       ctx.fillStyle = i < stars ? this.colors.star : this.colors.secondary;
-      ctx.fillText('★', x + i * 36, y);
+      ctx.fillText('\u2605', x + i * 36, y);
     }
     ctx.restore();
   }
@@ -138,7 +146,12 @@ class ResultPanel {
     const panelHeight = this.mode === 'win' ? 360 : 384;
     const panelX = (this.width - panelWidth) / 2;
     const panelY = Math.max(74, (this.height - panelHeight) / 2);
-    const glowColor = this.mode === 'win' ? this.colors.winGlow : this.colors.failGlow;
+    const themeKey = String(this.result.theme || this.result.themeName || '').toLowerCase();
+    const starTheme = themeKey.includes('star');
+    const oceanTheme = themeKey.includes('ocean') || themeKey.includes('sea') || themeKey.includes('ripple');
+    const glowColor = starTheme
+      ? this.colors.starThemeGlow
+      : (oceanTheme ? this.colors.oceanThemeGlow : (this.mode === 'win' ? this.colors.winGlow : this.colors.failGlow));
 
     ctx.save();
     ctx.fillStyle = this.colors.mask;
@@ -164,11 +177,22 @@ class ResultPanel {
     ctx.restore();
 
     ctx.save();
-    ctx.fillStyle = this.mode === 'win'
-      ? 'rgba(17,138,178,0.10)'
-      : (this.result.canShareRevive ? this.colors.reviveBanner : 'rgba(239,71,111,0.10)');
+    ctx.fillStyle = starTheme
+      ? this.colors.starThemeBanner
+      : oceanTheme
+        ? this.colors.oceanThemeBanner
+      : (this.mode === 'win'
+        ? 'rgba(17,138,178,0.10)'
+        : (this.result.canShareRevive ? this.colors.reviveBanner : 'rgba(239,71,111,0.10)'));
     roundRect(ctx, panelX + 18, panelY + 18, panelWidth - 36, 48, 16);
     ctx.fill();
+    ctx.strokeStyle = starTheme
+      ? this.colors.starThemeStroke
+      : oceanTheme
+        ? this.colors.oceanThemeStroke
+      : (this.mode === 'win' ? 'rgba(17,138,178,0.18)' : 'rgba(239,71,111,0.14)');
+    ctx.lineWidth = 1;
+    ctx.stroke();
     ctx.restore();
 
     if (this.mode === 'fail' && this.result.canShareRevive) {
@@ -200,7 +224,24 @@ class ResultPanel {
       ctx.fillText(this.t(`result.fail.reason.${this.result.reason}`), this.width / 2, panelY + 92);
     }
 
-    const statY = panelY + 138;
+    if (this.result.adState) {
+      ctx.save();
+      const adState = this.result.adState;
+      const adGlow = adState.success ? this.colors.adSuccessGlow : this.colors.adFailGlow;
+      const adY = panelY + 112;
+      roundRect(ctx, panelX + 24, adY, panelWidth - 48, 24, 10);
+      ctx.fillStyle = adGlow;
+      ctx.fill();
+      ctx.fillStyle = adState.success ? '#92400E' : this.colors.danger;
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const adLabel = adState.success ? this.t('result.ads.rewardGranted') : this.t('result.ads.unavailable');
+      ctx.fillText(adLabel, this.width / 2, adY + 12);
+      ctx.restore();
+    }
+
+    const statY = panelY + (this.result.adState ? 148 : 138);
     const stats = [
       ['result.stats.moves', `${this.result.moves}/${this.result.minimumSteps}`],
       ['result.stats.time', this.formatTime(this.result.elapsedMs)],

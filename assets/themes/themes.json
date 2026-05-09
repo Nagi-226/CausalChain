@@ -1,12 +1,27 @@
 {
-  "version": "0.0.6",
+  "version": "0.0.9",
   "themes": {
     "star": {
       "name": "Starlight",
       "background": ["#111827", "#172554", "#0f172a"],
       "panel": "rgba(15,23,42,0.58)",
       "grid": "rgba(2,6,23,0.34)",
+      "boardGlow": "rgba(141,215,255,0.14)",
+      "boardEdge": "rgba(191,219,254,0.26)",
+      "boardInner": "rgba(255,255,255,0.05)",
+      "themeLabel": "rgba(191,219,254,0.30)",
+      "tileBorder": "rgba(255,255,255,0.46)",
+      "tileInner": "rgba(255,255,255,0.18)",
       "ripple": "#8dd7ff",
+      "atmosphere": {
+        "halo": "rgba(216,180,254,0.24)",
+        "haloMid": "rgba(125,211,252,0.10)",
+        "orb": "rgba(196,181,253,0.18)",
+        "orbMid": "rgba(125,211,252,0.06)",
+        "line": "rgba(196,181,253,0.14)",
+        "particle": "#f5f3ff",
+        "particleCount": 18
+      },
       "palette": {
         "crimson": "#ef4444",
         "azure": "#38bdf8",
@@ -18,7 +33,22 @@
       "background": ["#082f49", "#0f766e", "#022c22"],
       "panel": "rgba(6,78,59,0.54)",
       "grid": "rgba(8,47,73,0.38)",
+      "boardGlow": "rgba(45,212,191,0.13)",
+      "boardEdge": "rgba(103,232,249,0.24)",
+      "boardInner": "rgba(204,251,241,0.045)",
+      "themeLabel": "rgba(153,246,228,0.32)",
+      "tileBorder": "rgba(204,251,241,0.44)",
+      "tileInner": "rgba(240,253,250,0.16)",
       "ripple": "#67e8f9",
+      "atmosphere": {
+        "halo": "rgba(103,232,249,0.18)",
+        "haloMid": "rgba(45,212,191,0.10)",
+        "orb": "rgba(45,212,191,0.16)",
+        "orbMid": "rgba(34,211,238,0.07)",
+        "line": "rgba(125,211,252,0.13)",
+        "particle": "#ccfbf1",
+        "particleCount": 24
+      },
       "palette": {
         "crimson": "#fb7185",
         "azure": "#22d3ee",

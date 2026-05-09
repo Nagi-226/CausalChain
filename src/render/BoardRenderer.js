@@ -44,6 +44,7 @@ class BoardRenderer {
   setTheme(theme) {
     if (!theme) return;
     this.theme = Object.assign({}, this.theme, theme);
+    this.currentThemeName = [theme.id, theme.name].filter(Boolean).join(' ') || this.currentThemeName || '';
     if (theme.palette) {
       this.palette = Object.assign({}, this.palette, theme.palette);
     }
@@ -214,12 +215,20 @@ class BoardRenderer {
 
   drawPanel(ctx) {
     const l = this.layout;
+    const themeName = (this.currentThemeName || '').toLowerCase();
+    const starLabel = themeName.includes('starlight') || themeName.includes('star');
+    const oceanLabel = themeName.includes('ocean') || themeName.includes('sea') || themeName.includes('ripple');
+    const boardGlow = this.theme.boardGlow || (starLabel ? 'rgba(141,215,255,0.12)' : 'rgba(141,215,255,0.08)');
+    const boardEdge = this.theme.boardEdge || (starLabel ? 'rgba(191,219,254,0.24)' : 'rgba(226,232,240,0.18)');
+    const boardInner = this.theme.boardInner || (starLabel ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.03)');
+    const themeTag = starLabel ? 'STELLAR FIELD' : (oceanLabel ? 'RIPPLE SEA' : (this.currentThemeName || ''));
+
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.28)';
     ctx.shadowBlur = 18;
     ctx.shadowOffsetY = 9;
     roundedRect(ctx, l.x - 10, l.y - 10, l.width + 20, l.height + 20, 24);
-    ctx.fillStyle = this.theme.boardGlow || 'rgba(141,215,255,0.08)';
+    ctx.fillStyle = boardGlow;
     ctx.fill();
     ctx.restore();
 
@@ -230,15 +239,30 @@ class BoardRenderer {
     roundedRect(ctx, l.x - 6, l.y - 6, l.width + 12, l.height + 12, 22);
     ctx.fillStyle = this.theme.panel || 'rgba(15,23,42,0.58)';
     ctx.fill();
-    ctx.strokeStyle = this.theme.boardEdge || 'rgba(226,232,240,0.18)';
+    ctx.strokeStyle = boardEdge;
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
 
     ctx.save();
     roundedRect(ctx, l.x, l.y, l.width, l.height, 18);
-    ctx.fillStyle = this.theme.boardInner || 'rgba(255,255,255,0.03)';
+    ctx.fillStyle = boardInner;
     ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    const title = themeTag;
+    if (title) {
+      ctx.fillStyle = this.theme.themeLabel || (starLabel ? 'rgba(191,219,254,0.26)' : 'rgba(255,255,255,0.18)');
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText(title, l.x + 12, l.y - 12);
+    }
+    if (starLabel || oceanLabel) {
+      ctx.fillStyle = oceanLabel ? 'rgba(103,232,249,0.18)' : 'rgba(191,219,254,0.18)';
+      ctx.fillRect(l.x + l.width - 68, l.y - 14, 56, 2);
+    }
     ctx.restore();
   }
 
@@ -251,7 +275,7 @@ class BoardRenderer {
         const target = this.highlightTarget && this.highlightTarget.row === row && this.highlightTarget.col === col;
         ctx.save();
         roundedRect(ctx, rect.x, rect.y, rect.width, rect.height, this.layout.radius);
-        ctx.fillStyle = invalid ? 'rgba(239,68,68,0.24)' : (this.theme.grid || 'rgba(2,6,23,0.34)');
+        ctx.fillStyle = invalid ? 'rgba(239,68,68,0.18)' : (this.theme.grid || 'rgba(2,6,23,0.34)');
         ctx.fill();
         ctx.strokeStyle = target ? '#fef3c7' : (selected ? '#93c5fd' : 'rgba(148,163,184,0.16)');
         ctx.lineWidth = target || selected ? 3 : 1;
@@ -261,6 +285,14 @@ class BoardRenderer {
         ctx.fillStyle = 'rgba(255,255,255,0.16)';
         roundedRect(ctx, rect.x + 1, rect.y + 1, rect.width - 2, Math.max(4, rect.height * 0.16), this.layout.radius * 0.6);
         ctx.fill();
+
+        if (themeNameIsStar(this.currentThemeName) || themeNameIsOcean(this.currentThemeName)) {
+          ctx.globalAlpha = 0.08;
+          ctx.fillStyle = 'rgba(255,255,255,0.30)';
+          ctx.beginPath();
+          ctx.arc(rect.x + rect.width * 0.82, rect.y + rect.height * 0.20, Math.max(1.2, rect.width * (themeNameIsOcean(this.currentThemeName) ? 0.07 : 0.05)), 0, Math.PI * 2);
+          ctx.fill();
+        }
         ctx.restore();
       }
     }
@@ -583,6 +615,16 @@ function lighten(hex, amount) {
 
 function darken(hex, amount) {
   return adjustHex(hex, -amount);
+}
+
+function themeNameIsStar(themeName) {
+  const name = String(themeName || '').toLowerCase();
+  return name.includes('star');
+}
+
+function themeNameIsOcean(themeName) {
+  const name = String(themeName || '').toLowerCase();
+  return name.includes('ocean') || name.includes('sea') || name.includes('ripple');
 }
 
 function adjustHex(hex, amount) {
