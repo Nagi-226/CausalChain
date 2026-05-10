@@ -1,6 +1,9 @@
 ﻿const CARD_WIDTH = 600;
 const CARD_HEIGHT = 800;
 
+var CU = require('../utils/CanvasUtils.js');
+var roundRect = CU.roundedRect;
+
 const DEFAULT_COLORS = {
   bgTop: '#07111F',
   bgBottom: '#12324D',
@@ -308,21 +311,6 @@ function drawArrowHead(ctx, a, b, color) {
   ctx.closePath();
   ctx.fill();
   ctx.restore();
-}
-
-function roundRect(ctx, x, y, width, height, radius) {
-  const r = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + width - r, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-  ctx.lineTo(x + width, y + height - r);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-  ctx.lineTo(x + r, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
 }
 
 function callWx(fn, context, payload) {

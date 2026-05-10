@@ -8,27 +8,9 @@ const DEFAULT_COLORS = {
   border: 'rgba(141, 215, 255, 0.18)'
 };
 
-function readString(strings, key) {
-  return key.split('.').reduce((node, part) => {
-    if (!node || typeof node !== 'object') return undefined;
-    return node[part];
-  }, strings) || key;
-}
-
-function roundRect(ctx, x, y, width, height, radius) {
-  const r = Math.min(radius, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + width - r, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-  ctx.lineTo(x + width, y + height - r);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-  ctx.lineTo(x + r, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
+var CU = require('../utils/CanvasUtils.js');
+var readString = CU.readString;
+var roundRect = CU.roundedRect;
 
 class HUD {
   constructor(options = {}) {

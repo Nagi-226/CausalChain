@@ -140,7 +140,7 @@ class AdManager {
 
     return new Promise((resolve) => {
       let resolved = false;
-      const finish = (payload) => {
+      let finish = (payload) => {
         if (resolved) return;
         resolved = true;
         if (this.rewardedAd.offClose) this.rewardedAd.offClose(onClose);
@@ -160,7 +160,15 @@ class AdManager {
         });
       };
       if (this.rewardedAd.onClose) this.rewardedAd.onClose(onClose);
-      const showPromise = this.rewardedAd.show ? this.rewardedAd.show() : Promise.reject(new Error('Rewarded ad unavailable'));
+      var timeoutId = setTimeout(() => {
+        if (!resolved) finish({ success: false, source: 'wx', reason: 'timeout' });
+      }, 60000);
+      var originalFinish = finish;
+      finish = (payload) => {
+        clearTimeout(timeoutId);
+        originalFinish(payload);
+      };
+      var showPromise = this.rewardedAd.show ? this.rewardedAd.show() : Promise.reject(new Error('Rewarded ad unavailable'));
       showPromise.catch(() => {
         if (!this.rewardedAd.load) {
           finish({ success: false, source: 'wx', reason: 'loadFailed' });
@@ -168,9 +176,12 @@ class AdManager {
         }
         return this.rewardedAd.load()
           .then(() => this.rewardedAd.show())
+          .then(() => {
+            if (!resolved) finish({ success: true, source: 'wx', reason: reason });
+          })
           .catch((error) => {
             this.emit('rewarded.error', error);
-            finish({ success: false, source: 'wx', reason: 'loadFailed', error });
+            finish({ success: false, source: 'wx', reason: 'loadFailed', error: error });
           });
       });
     });

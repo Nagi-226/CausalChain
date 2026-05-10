@@ -19,3 +19,10 @@ node_modules/
 .vscode/
 *.swp
 *.swo
+
+# Claude Code runtime artifacts
+.claude/scheduled_tasks.lock
+
+# External agent artifacts (codex, etc.)
+.agents/
+.codex/

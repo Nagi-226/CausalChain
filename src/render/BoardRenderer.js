@@ -1,3 +1,9 @@
+var CU = require('../utils/CanvasUtils.js');
+var roundedRect = CU.roundedRect;
+var drawArrowHead = CU.drawArrowHead;
+var hashString = CU.hashString;
+var clamp = CU.clamp;
+
 class BoardRenderer {
   constructor(ctx, options) {
     const opts = options || {};
@@ -27,6 +33,12 @@ class BoardRenderer {
       violet: '#a78bfa',
       rose: '#fb7185',
       slate: '#334155'
+    };
+    this.paradoxStyle = {
+      border: '#c084fc',
+      glow: 'rgba(192,132,252,0.55)',
+      inner: 'rgba(245,208,254,0.24)',
+      badge: '#581c87'
     };
     this.colorblind = Boolean(options.colorblind);
     this.theme = {
@@ -325,9 +337,11 @@ class BoardRenderer {
     for (let i = 0; i < waves.length; i += 1) {
       const wave = waves[i];
       const tiles = wave.tiles || [];
-      const relationChain = tiles.some((tile) => tile.relation === 'chain');
-      const baseColor = relationChain ? (this.theme.ripple || '#67e8f9') : '#bfdbfe';
-      const lineWidth = relationChain ? 3.2 : 2.8;
+    const relationCross = tiles.some((tile) => tile.relation === 'cross-chain');
+    const relationChain = tiles.some((tile) => tile.relation === 'chain');
+    const relationParadox = tiles.some((tile) => tile.relation === 'paradox_expand');
+    const baseColor = relationParadox ? '#c084fc' : (relationCross ? '#fb923c' : (relationChain ? (this.theme.ripple || '#67e8f9') : '#bfdbfe'));
+    const lineWidth = relationCross ? 3.6 : (relationChain ? 3.2 : 2.8);
       const alpha = 0.58 * (1 - wave.progress);
       const radiusBase = this.layout.cell * (0.24 + wave.progress * 0.48);
       ctx.save();
@@ -399,23 +413,31 @@ class BoardRenderer {
     const r = this.layout.radius;
     const gradient = ctx.createLinearGradient ? ctx.createLinearGradient(-half, -half, half, half) : null;
     if (gradient && gradient.addColorStop) {
-      gradient.addColorStop(0, lighten(color, 0.2));
-      gradient.addColorStop(1, darken(color, 0.2));
+      gradient.addColorStop(0, lighten(color, isParadoxTile(tile) ? 0.3 : 0.2));
+      gradient.addColorStop(0.58, color);
+      gradient.addColorStop(1, isParadoxTile(tile) ? '#581c87' : darken(color, 0.2));
       ctx.fillStyle = gradient;
     } else {
       ctx.fillStyle = color;
     }
     roundedRect(ctx, -half, -half, size, size, r);
     ctx.fill();
-    ctx.strokeStyle = invalid ? '#fecaca' : (this.theme.tileBorder || 'rgba(255,255,255,0.42)');
-    ctx.lineWidth = invalid ? 4 : 1.5;
+    ctx.strokeStyle = invalid ? '#fecaca' : (isParadoxTile(tile) ? this.paradoxStyle.border : (this.theme.tileBorder || 'rgba(255,255,255,0.42)'));
+    ctx.lineWidth = invalid ? 4 : (isParadoxTile(tile) ? 3 : 1.5);
     ctx.stroke();
 
     const prevAlpha = ctx.globalAlpha;
-    ctx.globalAlpha *= 0.18;
-    ctx.fillStyle = this.theme.tileInner || '#ffffff';
+    ctx.globalAlpha *= isParadoxTile(tile) ? 0.26 : 0.18;
+    ctx.fillStyle = isParadoxTile(tile) ? this.paradoxStyle.inner : (this.theme.tileInner || '#ffffff');
     roundedRect(ctx, -half + 5, -half + 5, size - 10, Math.max(8, size * 0.22), r * 0.7);
     ctx.fill();
+    if (isParadoxTile(tile)) {
+      ctx.globalAlpha = prevAlpha * 0.22;
+      ctx.strokeStyle = '#f5d0fe';
+      ctx.lineWidth = 1.2;
+      roundedRect(ctx, -half + 4, -half + 4, size - 8, size - 8, r * 0.9);
+      ctx.stroke();
+    }
     ctx.globalAlpha = prevAlpha;
   }
 
@@ -463,6 +485,10 @@ class BoardRenderer {
   }
 
   drawCauseEffectArrow(ctx, size, tile) {
+    if (isParadoxTile(tile)) {
+      this.drawParadoxDualArrow(ctx, size);
+      return;
+    }
     const isCause = tile.type === 'cause' || tile.role === 'cause' || tile.isCause;
     const startX = isCause ? -size * 0.34 : size * 0.22;
     const endX = isCause ? -size * 0.16 : size * 0.04;
@@ -489,13 +515,43 @@ class BoardRenderer {
     ctx.restore();
   }
 
+  drawParadoxDualArrow(ctx, size) {
+    const y = -size * 0.32;
+    const left = -size * 0.34;
+    const right = size * 0.12;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.94)';
+    ctx.fillStyle = 'rgba(255,255,255,0.94)';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(left, y);
+    ctx.lineTo(right, y);
+    ctx.stroke();
+    drawArrowHead(ctx, right, y, 1);
+    drawArrowHead(ctx, left, y, -1);
+
+    ctx.fillStyle = this.paradoxStyle.badge;
+    ctx.beginPath();
+    ctx.arc(size * 0.34, -size * 0.34, Math.max(8, size * 0.13), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.82)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.fillStyle = '#fdf4ff';
+    ctx.font = 'bold ' + Math.max(9, Math.floor(size * 0.16)) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('P', size * 0.34, -size * 0.34);
+    ctx.restore();
+  }
+
   drawChainBadge(ctx, size, tile) {
     const count = tile.chainCount || tile.links || 0;
     if (!count) {
       return;
     }
     ctx.save();
-    ctx.fillStyle = 'rgba(15,23,42,0.72)';
+    ctx.fillStyle = isParadoxTile(tile) ? 'rgba(88,28,135,0.82)' : 'rgba(15,23,42,0.72)';
     ctx.beginPath();
     ctx.arc(size * 0.32, size * 0.32, size * 0.12, 0, Math.PI * 2);
     ctx.fill();
@@ -555,20 +611,13 @@ function flattenTiles(board) {
     return board.tiles;
   }
   if (Array.isArray(board)) {
-    const result = [];
-    for (let row = 0; row < board.length; row += 1) {
-      const line = board[row];
+    var result = [];
+    for (var row = 0; row < board.length; row += 1) {
+      var line = board[row];
       if (Array.isArray(line)) {
-        for (let col = 0; col < line.length; col += 1) {
+        for (var col = 0; col < line.length; col += 1) {
           if (line[col]) {
-            const tile = line[col];
-            if (tile.row === undefined) {
-              tile.row = row;
-            }
-            if (tile.col === undefined) {
-              tile.col = col;
-            }
-            result.push(tile);
+            result.push(line[col]);
           }
         }
       }
@@ -579,40 +628,17 @@ function flattenTiles(board) {
 }
 
 function normalizeTile(tile, index) {
-  if (!tile.id) {
-    tile.id = 'tile-' + index + '-' + tile.row + '-' + tile.col;
-  }
-  if (!tile.type) {
-    tile.type = tile.role || (tile.isCause ? 'cause' : 'effect');
-  }
-  return tile;
+  if (!tile) return tile;
+  var id = tile.id || ('tile-' + index + '-' + (tile.row != null ? tile.row : '?') + '-' + (tile.col != null ? tile.col : '?'));
+  var type = tile.type || tile.role || (tile.isCause ? 'cause' : (tile.isEffect ? 'effect' : 'unknown'));
+  var normalized = Object.assign({}, tile);
+  normalized.id = id;
+  normalized.type = type;
+  return normalized;
 }
 
-function roundedRect(ctx, x, y, width, height, radius) {
-  const r = Math.min(radius || 0, width / 2, height / 2);
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.lineTo(x + width - r, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
-  ctx.lineTo(x + width, y + height - r);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
-  ctx.lineTo(x + r, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
-  ctx.lineTo(x, y + r);
-  ctx.quadraticCurveTo(x, y, x + r, y);
-  ctx.closePath();
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-function hashString(value) {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = ((hash << 5) - hash + value.charCodeAt(i)) | 0;
-  }
-  return hash;
+function isParadoxTile(tile) {
+  return Boolean(tile && (tile.type === 'paradox' || tile.paradox));
 }
 
 function lighten(hex, amount) {

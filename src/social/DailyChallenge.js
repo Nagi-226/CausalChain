@@ -1,4 +1,5 @@
 const MEMORY_STORAGE = {};
+var hashString = require('../utils/CanvasUtils.js').hashString;
 
 class DailyChallenge {
   constructor(options = {}) {
@@ -133,15 +134,6 @@ class DailyChallenge {
   saveLocal() {
     getStorage(this.wx).set(this.storageKey, this.cache);
   }
-}
-
-function hashString(value) {
-  let hash = 2166136261;
-  for (let i = 0; i < value.length; i += 1) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return Math.abs(hash >>> 0);
 }
 
 function rankRows(rows = []) {

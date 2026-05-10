@@ -289,11 +289,11 @@ function preventDefault(event) {
 }
 
 function isCauseTile(tile) {
-  return tile && (tile.type === 'cause' || tile.role === 'cause' || tile.isCause === true);
+  return tile && (tile.type === 'cause' || tile.type === 'paradox' || tile.role === 'cause' || tile.isCause === true);
 }
 
 function isEffectTile(tile) {
-  return tile && (tile.type === 'effect' || tile.role === 'effect' || tile.isEffect === true);
+  return tile && (tile.type === 'effect' || tile.type === 'paradox' || tile.role === 'effect' || tile.isEffect === true);
 }
 
 function normalizeResult(value, cause, effect) {

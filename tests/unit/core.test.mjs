@@ -7,9 +7,12 @@ const EventBus = require('../../src/utils/EventBus.js');
 const Timer = require('../../src/utils/Timer.js');
 const ObjectPool = require('../../src/utils/ObjectPool.js');
 const CausalEngine = require('../../src/core/CausalEngine.js');
+const Difficulty = require('../../src/core/Difficulty.js');
 const BoardGenerator = require('../../src/core/BoardGenerator.js');
 const BoardValidator = require('../../src/core/BoardValidator.js');
 const Solver = require('../../src/core/Solver.js');
+const BoardRenderer = require('../../src/render/BoardRenderer.js');
+const TileAnimator = require('../../src/render/TileAnimator.js');
 const ShareManager = require('../../src/social/ShareManager.js');
 const LeaderboardManager = require('../../src/social/LeaderboardManager.js');
 const DailyChallenge = require('../../src/social/DailyChallenge.js');
@@ -18,7 +21,7 @@ const ItemManager = require('../../src/monetization/ItemManager.js');
 const SoundManager = require('../../src/audio/SoundManager.js');
 const openDataContext = require('../../open-data-context/index.js');
 const dailyChallengeCloud = require('../../cloud/functions/dailyChallenge/index.js');
-const { bootstrap, resolvePerformanceProfile } = require('../../game.js');
+const { bootstrap, resolvePerformanceProfile, createMockContext } = require('../../game.js');
 const levels = require('../../src/data/levels.json');
 const themes = require('../../assets/themes/themes.json');
 const audio = require('../../src/data/audio.json');
@@ -43,6 +46,18 @@ const placePair = (board, from, to, color = 'crimson', icon = 'spark') => {
     to.col,
     `effect-${to.row}-${to.col}-${color}-${icon}`
   );
+};
+
+const placeTile = (board, position, type, color = 'crimson', icon = 'spark', id = null) => {
+  board[position.row][position.col] = CausalEngine.createTile(
+    type,
+    color,
+    icon,
+    position.row,
+    position.col,
+    id || `${type}-${position.row}-${position.col}-${color}-${icon}`
+  );
+  return board[position.row][position.col];
 };
 
 {
@@ -77,6 +92,46 @@ const placePair = (board, from, to, color = 'crimson', icon = 'spark') => {
   assert.equal(timer.running, false);
   timer.setFPS(30).pause().resume().stop();
   assert.equal(timer.targetFPS, 30);
+}
+
+{
+  for (let level = 1; level <= 20; level += 1) {
+    const config = Difficulty.getConfig(level);
+    assert.equal(config.level, level, `difficulty ${level} should preserve its preset level`);
+    assert.ok(config.fillRate > 0 && config.fillRate <= 1, `difficulty ${level} fillRate should be in range`);
+    assert.ok(config.directRatio >= 0 && config.directRatio <= 1, `difficulty ${level} directRatio should be in range`);
+    assert.ok(config.rewindCoverage >= 0 && config.rewindCoverage <= 1, `difficulty ${level} rewindCoverage should be in range`);
+    assert.ok(config.rewindDepth >= 1 && config.rewindDepth <= 4, `difficulty ${level} rewindDepth should be bounded`);
+    assert.ok(config.paradoxRatio >= 0 && config.paradoxRatio <= 0.3, `difficulty ${level} paradoxRatio should be in range`);
+    assert.ok(config.crossLayerRatio >= 0 && config.crossLayerRatio <= 0.3, `difficulty ${level} crossLayerRatio should be in range`);
+    assert.ok(Number.isInteger(config.crossLayerDepth), `difficulty ${level} crossLayerDepth should be explicit`);
+    assert.ok(Array.isArray(config.chainLength) && config.chainLength.length === 2, `difficulty ${level} chainLength should be a pair`);
+    assert.ok(config.chainLength[0] >= 1 && config.chainLength[1] >= config.chainLength[0], `difficulty ${level} chainLength should be ordered`);
+    assert.equal(Difficulty.getTileCount(level) % 2, 0, `difficulty ${level} tile count should stay pairable`);
+  }
+
+  assert.equal(Difficulty.getConfig(0).level, 1, 'difficulty levels below range clamp to 1');
+  assert.equal(Difficulty.getConfig(21).level, 20, 'difficulty levels above range clamp to 20');
+
+  const config = Difficulty.getConfig(20);
+  config.chainLength[0] = 99;
+  assert.notEqual(Difficulty.getConfig(20).chainLength[0], 99, 'difficulty configs should be defensive copies');
+
+  const override = Difficulty.normalize({ level: 11, fillRate: 0.5, crossLayerDepth: 1 });
+  assert.equal(override.level, 11);
+  assert.equal(override.fillRate, 0.5);
+  assert.equal(override.crossLayerDepth, 1);
+  assert.equal(typeof override.paradoxRatio, 'number', 'object overrides inherit v0.1.1 params');
+
+  const validator = new BoardValidator();
+  for (let level = 11; level <= 20; level += 1) {
+    const generated = BoardGenerator.generate({ seed: `v0.1.1-difficulty-${level}`, difficulty: level });
+    const validation = validator.validate(generated.board);
+    assert.equal(validation.valid, true, `difficulty ${level} should generate a structurally valid board`);
+    assert.equal(validator.hasLegalMove(generated.board), true, `difficulty ${level} should generate at least one legal move`);
+    assert.equal(generated.metadata.paradoxRatio, Difficulty.getConfig(level).paradoxRatio);
+    assert.equal(generated.metadata.crossLayerRatio, Difficulty.getConfig(level).crossLayerRatio);
+  }
 }
 
 {
@@ -139,6 +194,174 @@ const placePair = (board, from, to, color = 'crimson', icon = 'spark') => {
   mismatchBoard[0][1].pairKey = 'azure:leaf';
   const mismatchEngine = new CausalEngine({ board: mismatchBoard, seed: 'mismatch' });
   assert.equal(mismatchEngine.canMatch({ row: 0, col: 0 }, { row: 0, col: 1 }).reason, 'pair_mismatch');
+}
+
+{
+  const cases = [
+    {
+      name: 'cause-to-effect',
+      source: CausalEngine.TILE_TYPES.CAUSE,
+      target: CausalEngine.TILE_TYPES.EFFECT,
+      reason: 'ok'
+    },
+    {
+      name: 'paradox-to-effect',
+      source: CausalEngine.TILE_TYPES.PARADOX,
+      target: CausalEngine.TILE_TYPES.EFFECT,
+      reason: 'paradox_match'
+    },
+    {
+      name: 'cause-to-paradox',
+      source: CausalEngine.TILE_TYPES.CAUSE,
+      target: CausalEngine.TILE_TYPES.PARADOX,
+      reason: 'paradox_match'
+    },
+    {
+      name: 'paradox-to-paradox',
+      source: CausalEngine.TILE_TYPES.PARADOX,
+      target: CausalEngine.TILE_TYPES.PARADOX,
+      reason: 'paradox_match'
+    }
+  ];
+
+  for (const testCase of cases) {
+    const board = makeEmptyBoard();
+    placeTile(board, { row: 0, col: 0 }, testCase.source, 'azure', 'spark', `${testCase.name}-source`);
+    placeTile(board, { row: 0, col: 1 }, testCase.target, 'azure', 'spark', `${testCase.name}-target`);
+    const engine = new CausalEngine({ board, seed: testCase.name });
+    const match = engine.canMatch({ row: 0, col: 0 }, { row: 0, col: 1 });
+    assert.equal(match.valid, true, `${testCase.name} should be a valid match`);
+    assert.equal(match.reason, testCase.reason, `${testCase.name} should report the expected reason`);
+  }
+
+  const board = makeEmptyBoard();
+  placeTile(board, { row: 0, col: 0 }, CausalEngine.TILE_TYPES.PARADOX, 'gold', 'moon', 'paradox-source');
+  placeTile(board, { row: 0, col: 1 }, CausalEngine.TILE_TYPES.CAUSE, 'gold', 'moon', 'cause-target');
+  placeTile(board, { row: 1, col: 0 }, CausalEngine.TILE_TYPES.EFFECT, 'gold', 'moon', 'effect-source');
+  placeTile(board, { row: 1, col: 1 }, CausalEngine.TILE_TYPES.PARADOX, 'gold', 'moon', 'paradox-target');
+  placeTile(board, { row: 2, col: 0 }, CausalEngine.TILE_TYPES.PARADOX, 'gold', 'leaf', 'paradox-mismatch-a');
+  placeTile(board, { row: 2, col: 1 }, CausalEngine.TILE_TYPES.EFFECT, 'gold', 'moon', 'effect-mismatch-b');
+
+  const engine = new CausalEngine({ board, seed: 'paradox-invalid' });
+  assert.equal(engine.canMatch({ row: 0, col: 0 }, { row: 0, col: 1 }).reason, 'target_not_compatible');
+  assert.equal(engine.canMatch({ row: 1, col: 0 }, { row: 1, col: 1 }).reason, 'source_not_cause');
+  assert.equal(engine.canMatch({ row: 2, col: 0 }, { row: 2, col: 1 }).reason, 'pair_mismatch');
+}
+
+{
+  const board = makeEmptyBoard();
+  placeTile(board, { row: 0, col: 0 }, CausalEngine.TILE_TYPES.PARADOX, 'crimson', 'leaf', 'p-source');
+  placeTile(board, { row: 0, col: 1 }, CausalEngine.TILE_TYPES.EFFECT, 'crimson', 'leaf', 'e-target');
+  placeTile(board, { row: 1, col: 0 }, CausalEngine.TILE_TYPES.CAUSE, 'azure', 'moon', 'c-source');
+  placeTile(board, { row: 1, col: 1 }, CausalEngine.TILE_TYPES.PARADOX, 'azure', 'moon', 'p-target');
+  placeTile(board, { row: 2, col: 0 }, CausalEngine.TILE_TYPES.EFFECT, 'gold', 'spark', 'effect-illegal-source');
+  placeTile(board, { row: 2, col: 1 }, CausalEngine.TILE_TYPES.CAUSE, 'gold', 'spark', 'cause-illegal-target');
+
+  const moves = CausalEngine.findLegalMoves(board);
+  assert.ok(moves.some((move) => move.sourceId === 'p-source' && move.targetId === 'e-target'), 'paradox can act as a legal source');
+  assert.ok(moves.some((move) => move.sourceId === 'c-source' && move.targetId === 'p-target'), 'paradox can act as a legal target');
+  assert.ok(!moves.some((move) => move.sourceId === 'effect-illegal-source'), 'effect cannot act as a legal source');
+  assert.ok(!moves.some((move) => move.targetId === 'cause-illegal-target'), 'cause cannot act as a legal target');
+  assert.equal(CausalEngine.canActAsSource(board[0][0]), true);
+  assert.equal(CausalEngine.canActAsTarget(board[0][0]), true);
+}
+
+{
+  const generated = BoardGenerator.generate({
+    seed: 'v0.1.3-paradox-generation',
+    difficulty: { level: 11, paradoxRatio: 0.3, crossLayerRatio: 0, chainLength: [2, 3] }
+  });
+  const validator = new BoardValidator();
+  const validation = validator.validate(generated.board);
+  assert.equal(validation.valid, true, 'paradox-generated board should pass structural validation');
+  assert.ok(generated.metadata.paradoxPairCount > 0, 'paradox generation should convert at least one pair');
+  assert.equal(generated.metadata.paradoxTileCount, generated.metadata.paradoxPairCount * 2);
+  assert.equal(validation.stats.typeCounts.paradox, generated.metadata.paradoxTileCount);
+
+  const paradoxStep = generated.solution.find((step) => step.paradox);
+  assert.ok(paradoxStep, 'solution should mark converted paradox pairs');
+  const engine = new CausalEngine({ board: generated.board, difficulty: { level: 11, rewindDepth: 1 }, seed: 'v0.1.3-paradox-playback' });
+  const match = engine.canMatch(paradoxStep.from, paradoxStep.to);
+  assert.equal(match.valid, true, 'generated paradox pair should be directly matchable');
+  assert.equal(match.reason, 'paradox_match');
+  const played = engine.processMove(paradoxStep.from, paradoxStep.to, { freezeRewind: true });
+  assert.equal(played.success, true, 'generated paradox pair should process as a valid move');
+}
+
+{
+  const validator = new BoardValidator();
+  for (let level = 11; level <= 20; level += 1) {
+    for (let sample = 0; sample < 5; sample += 1) {
+      const generated = BoardGenerator.generate({ seed: `v0.1.3-paradox-${level}-${sample}`, difficulty: level });
+      const validation = validator.validate(generated.board);
+      assert.equal(validation.valid, true, `difficulty ${level} paradox board ${sample} should validate`);
+      assert.equal(validator.hasLegalMove(generated.board), true, `difficulty ${level} paradox board ${sample} should have legal moves`);
+      assert.ok(generated.metadata.paradoxPairCount > 0, `difficulty ${level} should include paradox pairs`);
+      assert.equal(validation.stats.typeCounts.paradox, generated.metadata.paradoxTileCount);
+    }
+  }
+}
+
+{
+  const board = makeEmptyBoard();
+  placeTile(board, { row: 0, col: 0 }, CausalEngine.TILE_TYPES.PARADOX, 'azure', 'moon', 'visual-paradox');
+  placeTile(board, { row: 0, col: 1 }, CausalEngine.TILE_TYPES.EFFECT, 'azure', 'moon', 'visual-effect');
+  board[0][0].chainCount = 3;
+  const ctx = createMockContext();
+  const renderer = new BoardRenderer(ctx, { rows: 6, cols: 8, width: 375, height: 667 });
+  renderer.setBoard(board);
+  renderer.draw({ time: 16 });
+  assert.equal(renderer.getTileAt(0, 0).type, CausalEngine.TILE_TYPES.PARADOX, 'renderer should retain paradox tile type');
+
+  let now = 1000;
+  const animator = new TileAnimator({ clock: () => now });
+  animator.playEliminate([board[0][0]], { x: 10, y: 10 });
+  assert.equal(animator.animations[0].paradox, true, 'paradox elimination animation should be tagged');
+  assert.ok(animator.animations[0].duration > 400, 'paradox elimination should get a distinct animation duration');
+  now += 120;
+  const transform = animator.getTileTransform(board[0][0]);
+  assert.ok(transform.glow > 0, 'paradox elimination should produce visible glow');
+}
+
+{
+  const generated = BoardGenerator.generate({
+    seed: 'v0.1.5-cross-layer-generation',
+    difficulty: {
+      level: 17,
+      fillRate: 0.5,
+      paradoxRatio: 0,
+      crossLayerRatio: 1,
+      crossLayerDepth: 3,
+      chainLength: [4, 4],
+      rewindDepth: 1
+    }
+  });
+  assert.ok(generated.metadata.crossLayerLinkCount > 0, 'cross-layer generation should annotate cross-chain links');
+  assert.ok(generated.metadata.crossLayerMaxDepth >= 2, 'cross-layer links should skip at least one pair');
+
+  let sourcePairId = null;
+  for (const row of generated.board) {
+    for (const tile of row) {
+      if (!tile || !Array.isArray(tile.causalLinks)) continue;
+      const link = tile.causalLinks.find((item) => item.relation === 'cross-chain');
+      if (link) sourcePairId = link.sourcePairId;
+    }
+  }
+  assert.ok(sourcePairId, 'generated board should contain a cross-chain source pair');
+
+  const move = generated.solution.find((step) => step.pairId === sourcePairId);
+  assert.ok(move, 'cross-chain source pair should be playable from the generated solution');
+  const engine = new CausalEngine({
+    board: generated.board,
+    difficulty: { level: 17, rewindDepth: 1, crossLayerDepth: 3, paradoxRatio: 0 },
+    seed: 'v0.1.5-cross-layer-playback'
+  });
+  const start = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+  const result = engine.processMove(move.from, move.to);
+  const elapsed = (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now()) - start;
+  assert.equal(result.success, true, 'cross-chain source move should process successfully');
+  assert.ok(result.move.rewindLayers.flat().some((entry) => entry.relation === 'cross-chain'), 'rewind should include cross-chain relation');
+  assert.ok(elapsed < 10, 'cross-layer rewind should stay under the 10ms budget');
 }
 
 {

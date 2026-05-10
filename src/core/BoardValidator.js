@@ -74,19 +74,28 @@ class BoardValidator {
   getStats(board) {
     let tileCount = 0;
     const pairCounts = {};
+    const typeCounts = { cause: 0, effect: 0, paradox: 0 };
+    const pairRoleCounts = {};
     for (const row of board || []) {
       for (const tile of row || []) {
         if (!tile) continue;
         tileCount += 1;
+        if (typeCounts[tile.type] !== undefined) typeCounts[tile.type] += 1;
         const key = CausalEngine.getPairKey(tile);
         pairCounts[key] = (pairCounts[key] || 0) + 1;
+        if (!pairRoleCounts[key]) pairRoleCounts[key] = { source: 0, target: 0, paradox: 0 };
+        if (CausalEngine.canActAsSource(tile)) pairRoleCounts[key].source += 1;
+        if (CausalEngine.canActAsTarget(tile)) pairRoleCounts[key].target += 1;
+        if (tile.type === CausalEngine.TILE_TYPES.PARADOX) pairRoleCounts[key].paradox += 1;
       }
     }
     return {
       rows: Array.isArray(board) ? board.length : 0,
       cols: Array.isArray(board) && board[0] ? board[0].length : 0,
       tileCount,
+      typeCounts,
       pairCounts,
+      pairRoleCounts,
       legalMoves: Array.isArray(board) ? CausalEngine.findLegalMoves(board).length : 0
     };
   }

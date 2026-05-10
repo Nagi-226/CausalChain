@@ -76,8 +76,9 @@ class TileAnimator {
       this.animations.push({
         type: 'eliminate',
         tileId: getTileId(list[i]),
+        paradox: isParadoxTile(list[i]),
         start,
-        duration: opts.duration || (this.reducedMotion ? 220 : 400),
+        duration: opts.duration || (isParadoxTile(list[i]) ? (this.reducedMotion ? 240 : 460) : (this.reducedMotion ? 220 : 400)),
         origin: origin || null
       });
     }
@@ -206,7 +207,12 @@ class TileAnimator {
         const flash = Math.sin(progress * Math.PI);
         out.scale *= 1 - easeInCubic(progress) * 0.85;
         out.alpha *= 1 - easeInCubic(progress);
-        out.glow = Math.max(out.glow, flash);
+        if (anim.paradox) {
+          out.lift -= flash * 2;
+          out.glow = Math.max(out.glow, flash * 1.2);
+        } else {
+          out.glow = Math.max(out.glow, flash);
+        }
       } else if (anim.type === 'bounce') {
         const p = easeOutBack(progress);
         out.x += lerp(anim.from.x || 0, anim.to.x || 0, p);
@@ -235,6 +241,10 @@ function getTileId(tile) {
     return '';
   }
   return tile.id || (tile.row + ':' + tile.col);
+}
+
+function isParadoxTile(tile) {
+  return Boolean(tile && (tile.type === 'paradox' || tile.paradox));
 }
 
 function defaultNow() {
